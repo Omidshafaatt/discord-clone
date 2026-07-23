@@ -39,3 +39,6 @@ class UserUpdate(BaseModel):
     username: Optional[str] = Field(None, max_length=50)
     bio: Optional[str] = Field(None, max_length=500)
     profile_photo_url: Optional[str] = None
+
+
+
