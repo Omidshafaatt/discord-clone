@@ -15,6 +15,8 @@ from app.services.file_upload import save_upload_file
 from app.managers.websocket_manager import manager
 import json
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import or_
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -101,33 +103,69 @@ async def send_text_message(
     if not participant.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not a member of this chat")
 
+    # بررسی اینکه آیا پیام زمان‌دار است یا عادی
+    is_scheduled = message_data.scheduled_at is not None
+
+    # 👈 اعتبارسنجی زمان آینده برای پیام‌های زمان‌دار
+    if is_scheduled:
+        target_time = message_data.scheduled_at
+        
+        # اگر زمان ارسالی از سمت کلاینت فاقد تایم‌زون بود، آن را به عنوان UTC در نظر می‌گیریم
+        if target_time.tzinfo is None:
+            target_time = target_time.replace(tzinfo=timezone.utc)
+            
+        # مقایسه با زمان حال دقیق در منطقه زمانی UTC
+        if target_time <= datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The scheduled time must be in the future."
+            )
+    
+    # اگر زمان‌دار است، در لحظه ارسال نمی‌شود
+    is_sent = not is_scheduled
+
     # 2. ایجاد پیام در دیتابیس
     new_message = Message(
         chat_id=chat_id,
         sender_id=current_user.id,
         message_type=MessageType.TEXT,
-        content=message_data.content
+        content=message_data.content,
+        scheduled_at=message_data.scheduled_at,
+        is_sent=is_sent
     )
     db.add(new_message)
     await db.commit()
     await db.refresh(new_message)
 
-    # 3. ارسال پیام زنده به WebSocket
-    # (کلیه اعضای چت را پیدا کن)
-    members = await db.execute(select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id))
-    member_ids = [row[0] for row in members.all()]
+    # فقط در صورتی که پیام زمان‌دار *نباشد* آن را الان به سوکت می‌فرستیم
+    if not is_scheduled:
+        # 3. ارسال پیام زنده به WebSocket
+        # (کلیه اعضای چت را پیدا کن)
+        members = await db.execute(select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id))
+        member_ids = [row[0] for row in members.all()]
+        
+        message_json = json.dumps({
+            "event": "new_message",
+            "chat_id": chat_id,
+            "sender_id": current_user.id,
+            "sender_name": current_user.name,
+            "content": new_message.content,
+            "created_at": new_message.created_at.isoformat()
+        })
+        await manager.broadcast_to_chat(chat_id, member_ids, message_json)
     
-    message_json = json.dumps({
-        "event": "new_message",
-        "chat_id": chat_id,
-        "sender_id": current_user.id,
-        "sender_name": current_user.name,
-        "content": new_message.content,
-        "created_at": new_message.created_at.isoformat()
-    })
-    await manager.broadcast_to_chat(chat_id, member_ids, message_json)
-    
-    return new_message
+    return MessageOut(
+        id=new_message.id,
+        chat_id=new_message.chat_id,
+        sender_id=new_message.sender_id,
+        content=new_message.content,
+        message_type=new_message.message_type.value,
+        created_at=new_message.created_at,
+        is_deleted=new_message.is_deleted,
+        media_url=None,
+        scheduled_at=new_message.scheduled_at,
+        is_sent=new_message.is_sent
+    )
 
 # ---------------- 9. ارسال فایل/رسانه در یک چت ----------------
 @router.post("/{chat_id}/messages/media", response_model=MessageOut)
@@ -150,7 +188,6 @@ async def send_media_message(
 
     # 2. ذخیره فایل روی دیسک محلی
     file_path = await save_upload_file(file)
-    print(f"File saved at: {file_path}")  # برای دیباگ، مسیر فایل را چاپ می‌کنیم
     
     # 3. تشخیص نوع رسانه (بر اساس MIME type یا پسوند)
     mime_type = file.content_type or "application/octet-stream"
@@ -211,6 +248,8 @@ async def send_media_message(
         created_at=new_message.created_at,
         is_deleted=new_message.is_deleted,
         media_url=file_path,
+        scheduled_at=new_message.scheduled_at,
+        is_sent=new_message.is_sent
     )
 
 # ---------------- 10. دریافت تاریخچه پیام‌های یک چت ----------------
@@ -237,7 +276,12 @@ async def get_chat_history(
         .options(selectinload(Message.media))
         .where(
             Message.chat_id == chat_id,
-            Message.is_deleted == False
+            Message.is_deleted == False,
+            # 👈 شرط ترکیبی: یا پیام ارسال شده است، یا پیام زمان‌دارِ متعلق به خود کاربر است
+            or_(
+                Message.is_sent == True,
+                Message.sender_id == current_user.id
+            )
         )
         .order_by(desc(Message.created_at))
         .limit(limit)
@@ -255,6 +299,8 @@ async def get_chat_history(
             created_at=message.created_at,
             is_deleted=message.is_deleted,
             media_url=message.media.file_path if message.media else None,
+            scheduled_at=message.scheduled_at,
+            is_sent=message.is_sent
         )
         msgOuts.append(msgOut)
 
@@ -324,6 +370,8 @@ async def edit_message(
         created_at=message.created_at,
         is_deleted=message.is_deleted,
         media_url=message.media.file_path if message.media else None,
+        scheduled_at=message.scheduled_at,
+        is_sent=message.is_sent
     )
 
 # ---------------- 2. حذف پیام (نرم‌افزاری - Soft Delete) ----------------
@@ -420,6 +468,9 @@ async def search_messages_in_chat(
         created_at=msg.created_at,
         is_deleted=msg.is_deleted,
         media_url=msg.media.file_path if msg.media else None,
+        scheduled_at=msg.scheduled_at,
+        is_sent=msg.is_sent
     ) for msg in messages]
 
     return messages_out
+

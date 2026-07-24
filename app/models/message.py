@@ -29,6 +29,10 @@ class Message(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     is_deleted = Column(Boolean, default=False) # برای حذف نرم پیام
 
+    # فیلدهای جدید برای پیام زمان‌دار
+    scheduled_at = Column(DateTime(timezone=True), nullable=True) 
+    is_sent = Column(Boolean, default=True) # پیش‌فرض True است، یعنی پیام‌های عادی فورا ارسال می‌شوند
+
     # روابط
     sender = relationship("User", back_populates="sent_messages") # در مدل User اضافه شود
     chat = relationship("Chat", back_populates="messages")

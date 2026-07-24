@@ -15,34 +15,49 @@ from app.core.security import SECRET_KEY, ALGORITHM
 from app.managers.websocket_manager import manager
 from app.services.auth import get_user_by_phone
 
+from app.core.scheduler import scheduler, check_and_send_scheduled_messages
+from contextlib import asynccontextmanager
+from apscheduler.triggers.interval import IntervalTrigger
+# مدیریت متمرکز چرخه حیات سرور
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # --- در زمان روشن شدن سرور (Startup) ---
+    print("Server is starting up...")
+    
+    # 1. ساخت جداول دیتابیس
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    
+    # 2. تنظیم جاب (Job) و شروع Scheduler
+    scheduler.add_job(
+        check_and_send_scheduled_messages,
+        trigger=IntervalTrigger(seconds=10),
+        id="send_scheduled_messages_job",
+        replace_existing=True 
+    )
+    scheduler.start()
+    print("Scheduler started successfully.")
+    
+    yield # در این نقطه سرور ترافیک را دریافت می‌کند
+    
+    # --- در زمان خاموش شدن سرور (Shutdown) ---
+    print("Server is shutting down...")
+    
+    # 3. توقف ایمن Scheduler و قطع اتصالات دیتابیس
+    scheduler.shutdown()
+    await engine.dispose()
+    print("Resources cleaned up.")
 
-app = FastAPI(title="Messaging Service", version="1.0.0")
 
-# یک مسیر ساده برای تست اتصال دیتابیس
-# @app.get("/healthcheck")
-# async def healthcheck(db: AsyncSession = Depends(get_db)):
-#     # اینجا یک کوئری ساده به دیتابیس می‌زنیم
-#     # (مثلاً "SELECT 1") تا مطمئن شویم اتصال برقرار است
-#     result = await db.execute(text("SELECT 1"))
-#     return {"status": "connected", "db_test": result.scalar_one_or_none()}
+# پاس دادن lifespan به FastAPI
+app = FastAPI(title="Messaging Service", version="1.0.0", lifespan=lifespan)
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login") # برای دریافت توکن از هدر Authorization
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 # ثبت روترهای API
 app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(chat.router)
-
-@app.on_event("startup")
-async def startup_event():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    print("Server is starting up...")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    await engine.dispose()
-
 
 
 @app.websocket("/ws")
