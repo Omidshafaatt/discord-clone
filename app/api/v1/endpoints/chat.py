@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select, desc, and_
 from sqlalchemy.orm import selectinload
 from app.api.v1.endpoints.auth import get_current_user
@@ -171,7 +171,8 @@ async def send_text_message(
 @router.post("/{chat_id}/messages/media", response_model=MessageOut)
 async def send_media_message(
     chat_id: int,
-    text_content: str | None = None,  # متن اختیاری برای کپشن
+    text_content: str | None = Form(None),  # استفاده از Form به جای متغیر ساده
+    scheduled_at: datetime | None = Form(None), # دریافت زمان از طریق فیلد فرم
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -185,6 +186,21 @@ async def send_media_message(
     )
     if not participant.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not a member of this chat")
+
+    # 👈 اعتبارسنجی زمان آینده برای پیام‌های زمان‌دار
+    is_scheduled = scheduled_at is not None
+    if is_scheduled:
+        target_time = scheduled_at
+        if target_time.tzinfo is None:
+            target_time = target_time.replace(tzinfo=timezone.utc)
+            
+        if target_time <= datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The scheduled time must be in the future."
+            )
+            
+    is_sent = not is_scheduled
 
     # 2. ذخیره فایل روی دیسک محلی
     file_path = await save_upload_file(file)
@@ -205,7 +221,9 @@ async def send_media_message(
         chat_id=chat_id,
         sender_id=current_user.id,
         message_type=MessageType.MEDIA,
-        content=text_content # برای فایل، متن اختیاری است
+        content=text_content, # برای فایل، متن اختیاری است
+        scheduled_at=scheduled_at,
+        is_sent=is_sent
     )
     db.add(new_message)
     await db.flush() # برای گرفتن id قبل از commit
@@ -224,20 +242,21 @@ async def send_media_message(
     await db.commit()
     await db.refresh(new_message)
 
-    # 5. WebSocket Broadcast
-    members = await db.execute(select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id))
-    member_ids = [row[0] for row in members.all()]
-    
-    message_json = json.dumps({
-        "event": "new_message",
-        "chat_id": chat_id,
-        "sender_id": current_user.id,
-        "sender_name": current_user.name,
-        "content": f"Sent a {media_type_enum.value}",
-        "media_url": file_path,
-        "created_at": new_message.created_at.isoformat()
-    })
-    await manager.broadcast_to_chat(chat_id, member_ids, message_json)
+    if not is_scheduled:
+        # 5. WebSocket Broadcast
+        members = await db.execute(select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id))
+        member_ids = [row[0] for row in members.all()]
+        
+        message_json = json.dumps({
+            "event": "new_message",
+            "chat_id": chat_id,
+            "sender_id": current_user.id,
+            "sender_name": current_user.name,
+            "content": f"Sent a {media_type_enum.value}",
+            "media_url": file_path,
+            "created_at": new_message.created_at.isoformat()
+        })
+        await manager.broadcast_to_chat(chat_id, member_ids, message_json)
 
     return MessageOut(
         id=new_message.id,
@@ -448,6 +467,7 @@ async def search_messages_in_chat(
             and_(
                 Message.chat_id == chat_id,
                 Message.is_deleted == False,
+                Message.is_sent == True,  # فقط پیام‌های ارسال شده را جستجو کن
                 Message.content.ilike(f"%{q}%")
             )
         )

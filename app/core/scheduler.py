@@ -8,6 +8,8 @@ from app.models.message import Message
 from app.models.chat import ChatParticipant
 from app.managers.websocket_manager import manager
 
+from sqlalchemy.orm import selectinload
+
 # ۱. تعریف یک نمونه از زمان‌بند غیرهمزمان
 scheduler = AsyncIOScheduler()
 
@@ -18,7 +20,8 @@ async def check_and_send_scheduled_messages():
             # توجه: اگر دیتابیس شما timezone را ذخیره نمی‌کند، utcnow استفاده کنید: datetime.utcnow()
             now = datetime.now(timezone.utc)
             
-            stmt = select(Message).where(
+            # 👈 واکشی پیام‌ها همراه با پیوست رسانه
+            stmt = select(Message).options(selectinload(Message.media)).where(
                 Message.is_sent == False,
                 Message.scheduled_at <= now,
                 Message.is_deleted == False
@@ -29,12 +32,16 @@ async def check_and_send_scheduled_messages():
             for msg in pending_messages:
                 members = await db.execute(select(ChatParticipant.user_id).where(ChatParticipant.chat_id == msg.chat_id))
                 member_ids = [row[0] for row in members.all()]
+
+                media_url = msg.media.file_path if msg.media else None
                 
                 message_json = json.dumps({
                     "event": "new_message",
                     "chat_id": msg.chat_id,
                     "sender_id": msg.sender_id,
                     "content": msg.content,
+                    "media_url": media_url, # 👈 اضافه شد
+                    "message_type": msg.message_type.value, # 👈 اضافه شد برای تشخیص کلاینت
                     "created_at": msg.created_at.isoformat(),
                     "is_scheduled_delivery": True
                 })
