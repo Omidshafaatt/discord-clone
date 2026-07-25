@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Boolean, Column, Integer, String, DateTime
 from sqlalchemy.sql import func
 from app.db.session import Base
 from sqlalchemy.orm import relationship
@@ -23,6 +23,9 @@ class User(Base):
     # زمان‌های ایجاد و آخرین ویرایش (برای مدیریت بهتر و گزارش‌دهی)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # 👇 فیلد جدید برای تنظیمات حریم خصوصی
+    allow_group_invites = Column(Boolean, nullable=False, server_default="true")
 
     chats = relationship("ChatParticipant", back_populates="user", cascade="all, delete-orphan")
     sent_messages = relationship("Message", back_populates="sender", cascade="all, delete-orphan")

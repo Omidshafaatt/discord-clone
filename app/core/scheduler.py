@@ -21,7 +21,7 @@ async def check_and_send_scheduled_messages():
             now = datetime.now(timezone.utc)
             
             # 👈 واکشی پیام‌ها همراه با پیوست رسانه
-            stmt = select(Message).options(selectinload(Message.media)).where(
+            stmt = select(Message).options(selectinload(Message.media), selectinload(Message.sender)).where(
                 Message.is_sent == False,
                 Message.scheduled_at <= now,
                 Message.is_deleted == False
@@ -37,8 +37,10 @@ async def check_and_send_scheduled_messages():
                 
                 message_json = json.dumps({
                     "event": "new_message",
+                    "message_id": msg.id,
                     "chat_id": msg.chat_id,
                     "sender_id": msg.sender_id,
+                    "sender_name": msg.sender.name if msg.sender else "Unknown",
                     "content": msg.content,
                     "media_url": media_url, # 👈 اضافه شد
                     "message_type": msg.message_type.value, # 👈 اضافه شد برای تشخیص کلاینت

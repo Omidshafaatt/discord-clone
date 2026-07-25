@@ -1,17 +1,19 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from sqlalchemy import select, desc, and_
+from sqlalchemy import func, select, desc, and_
 from sqlalchemy.orm import selectinload
 from app.api.v1.endpoints.auth import get_current_user
 from app.db.session import get_db
-from app.models.chat import Chat, ChatParticipant
+from app.models.chat import Chat, ChatParticipant, ChatType
 from app.models.message import Message, Media, MessageType, MediaType
 from app.models.user import User
-from app.schemas.chat import ChatCreate, ChatOut
+from app.schemas.chat import AddMembersRequest, ChatCreate, ChatOut, GroupCreateForm, GroupOut, GroupUpdateForm
 from app.schemas.message import MessageCreate, MessageOut, MessageUpdate
+from app.schemas.user import UserPublic
+from app.services.auth import get_user_by_username
 from app.services.chat import get_or_create_dm_chat
-from app.services.file_upload import save_upload_file
+from app.services.file_upload import delete_profile_photo, save_profile_photo, save_upload_file
 from app.managers.websocket_manager import manager
 import json
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -493,4 +495,385 @@ async def search_messages_in_chat(
     ) for msg in messages]
 
     return messages_out
+
+@router.post("/group", response_model=GroupOut, status_code=status.HTTP_201_CREATED)
+async def create_group(
+    group_data: GroupCreateForm = Depends(),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. اعتبارسنجی نام گروه
+    if not group_data.name or not group_data.name.strip():
+        raise HTTPException(status_code=400, detail="Group name is required")
+
+    # 2. ذخیره عکس گروه (در صورت آپلود شدن فایل)
+    photo_url = None
+    if group_data.profile_photo:
+        photo_url = await save_profile_photo(group_data.profile_photo)
+
+    # 2. ایجاد رکورد Chat از نوع GROUP
+    new_chat = Chat(
+        chat_type=ChatType.GROUP,
+        name=group_data.name.strip(),
+        description=group_data.description,
+        profile_photo_url=photo_url,
+        created_by_id=current_user.id
+    )
+    db.add(new_chat)
+    await db.flush()  # برای دریافت id قبل از commit
+
+    # 3. افزودن خود کاربر سازنده به عنوان عضو
+    creator_participant = ChatParticipant(chat_id=new_chat.id, user_id=current_user.id)
+    db.add(creator_participant)
+
+    # 4. افزودن اعضای اولیه (در صورت وجود)
+    members_to_add = []
+    if group_data.initial_members:
+        for username in group_data.initial_members:
+            # پیدا کردن کاربر با یوزرنیم
+            user = await get_user_by_username(db, username)
+            if not user:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"User with username '{username}' not found"
+                )
+            if user.id == current_user.id:
+                continue  # از افزودن خودکار خود صرف‌نظر می‌کنیم (قبلاً اضافه شده)
+
+            # بررسی تنظیمات حریم خصوصی
+            if not user.allow_group_invites:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"User '{username}' does not allow group invites"
+                )
+
+            # جلوگیری از افزودن تکراری (اگر کاربر قبلاً در لیست باشد)
+            if user.id not in [u.id for u in members_to_add]:
+                members_to_add.append(user)
+
+    # افزودن همه اعضای معتبر به جدول شرکت‌کنندگان
+    for user in members_to_add:
+        participant = ChatParticipant(chat_id=new_chat.id, user_id=user.id)
+        db.add(participant)
+
+    # ذخیره نهایی در دیتابیس
+    await db.commit()
+    await db.refresh(new_chat)
+
+    # 5. بازیابی گروه به همراه اعضا برای خروجی
+    result = await db.execute(
+        select(Chat)
+        .options(selectinload(Chat.participants).selectinload(ChatParticipant.user))
+        .where(Chat.id == new_chat.id)
+    )
+    chat_with_members = result.scalar_one()
+
+    # ساخت لیست کاربران عضو با استفاده از UserPublic
+    members_out = [
+        UserPublic.model_validate(p.user) for p in chat_with_members.participants
+    ]
+
+    # 6. بازگرداندن پاسخ
+    return GroupOut(
+        id=chat_with_members.id,
+        chat_type=chat_with_members.chat_type.value,
+        created_at=chat_with_members.created_at,
+        name=chat_with_members.name,
+        description=chat_with_members.description,
+        profile_photo_url=chat_with_members.profile_photo_url,
+        members=members_out
+    )
+
+@router.get("/groups/{chat_id}", response_model=GroupOut)
+async def get_group_info(
+    chat_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. دریافت گروه با بارگذاری اعضا و کاربران آنها
+    result = await db.execute(
+        select(Chat)
+        .options(selectinload(Chat.participants).selectinload(ChatParticipant.user))
+        .where(Chat.id == chat_id)
+    )
+    chat = result.scalar_one_or_none()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    # 2. بررسی نوع چت (فقط گروه مجاز است)
+    if chat.chat_type != ChatType.GROUP:
+        raise HTTPException(status_code=400, detail="This is not a group chat")
+
+    # 3. بررسی عضویت کاربر جاری
+    is_member = any(p.user_id == current_user.id for p in chat.participants)
+    if not is_member:
+        raise HTTPException(status_code=403, detail="You are not a member of this group")
+
+    # 4. ساخت لیست اعضا با استفاده از UserPublic
+    members_out = [
+        UserPublic.model_validate(p.user) for p in chat.participants
+    ]
+
+    # 5. بازگرداندن اطلاعات گروه
+    return GroupOut(
+        id=chat.id,
+        chat_type=chat.chat_type.value,
+        created_at=chat.created_at,
+        name=chat.name,  # برای گروه مقدار دارد
+        description=chat.description,
+        profile_photo_url=chat.profile_photo_url,
+        members=members_out
+    )
+
+@router.patch("/groups/{chat_id}", response_model=GroupOut)
+async def update_group(
+    chat_id: int,
+    update_data: GroupUpdateForm = Depends(),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. دریافت گروه با بارگذاری اعضا
+    result = await db.execute(
+        select(Chat)
+        .options(selectinload(Chat.participants).selectinload(ChatParticipant.user))
+        .where(Chat.id == chat_id)
+    )
+    chat = result.scalar_one_or_none()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    # 2. بررسی نوع چت (فقط گروه)
+    if chat.chat_type != ChatType.GROUP:
+        raise HTTPException(status_code=400, detail="This is not a group chat")
+    
+    # 3. بررسی عضویت کاربر جاری
+    is_member = any(p.user_id == current_user.id for p in chat.participants)
+    if not is_member:
+        raise HTTPException(status_code=403, detail="You are not a member of this group")
+    
+    # 4. اعمال تغییرات (فقط فیلدهای ارسال شده)
+
+    # الف) بررسی و ذخیره عکس جدید
+    if update_data.profile_photo is not None:
+        # پاک کردن عکس قبلی گروه از روی سرور برای آزاد شدن فضا
+        if chat.profile_photo_url:
+            old_file_path = chat.profile_photo_url.lstrip("/") 
+            await delete_profile_photo(old_file_path)
+                
+        # ذخیره عکس جدید با کمک تابع مشترکی که قبلا ساختیم
+        new_photo_url = await save_profile_photo(update_data.profile_photo)
+        chat.profile_photo_url = new_photo_url
+    
+   # ب) بررسی نام گروه
+    if update_data.name is not None:
+        if not update_data.name.strip():
+            raise HTTPException(status_code=400, detail="Group name cannot be empty")
+        chat.name = update_data.name.strip()
+        
+    # ج) بررسی توضیحات گروه
+    if update_data.description is not None:
+        chat.description = update_data.description
+    
+    # 5. ذخیره در دیتابیس
+    db.add(chat)
+    await db.commit()
+    await db.refresh(chat)
+    
+    # 6. بازیابی مجدد با اعضا برای خروجی
+    # (چون refresh اعضا را بارگذاری نمی‌کند، دوباره کوئری می‌زنیم)
+    result = await db.execute(
+        select(Chat)
+        .options(selectinload(Chat.participants).selectinload(ChatParticipant.user))
+        .where(Chat.id == chat.id)
+    )
+    chat_with_members = result.scalar_one()
+    
+    members_out = [
+        UserPublic.model_validate(p.user) for p in chat_with_members.participants
+    ]
+    
+    return GroupOut(
+        id=chat_with_members.id,
+        chat_type=chat_with_members.chat_type.value,
+        created_at=chat_with_members.created_at,
+        name=chat_with_members.name,
+        description=chat_with_members.description,
+        profile_photo_url=chat_with_members.profile_photo_url,
+        members=members_out
+    )
+
+@router.delete("/groups/{chat_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_group(
+    chat_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. دریافت گروه
+    result = await db.execute(
+        select(Chat)
+        .options(selectinload(Chat.participants))
+        .where(Chat.id == chat_id)
+    )
+    chat = result.scalar_one_or_none()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    # 2. بررسی نوع چت
+    if chat.chat_type != ChatType.GROUP:
+        raise HTTPException(status_code=400, detail="This is not a group chat")
+    
+    # 3. بررسی عضویت کاربر جاری
+    is_member = any(p.user_id == current_user.id for p in chat.participants)
+    if not is_member:
+        raise HTTPException(status_code=403, detail="You are not a member of this group")
+    
+    # 4. حذف گروه (با cascade تمام وابسته‌ها حذف می‌شوند)
+    await db.delete(chat)
+    await db.commit()
+    
+    # 204 No Content (بدون محتوا)
+
+@router.delete("/groups/{chat_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+async def leave_group(
+    chat_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. دریافت گروه
+    chat = await db.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    if chat.chat_type != ChatType.GROUP:
+        raise HTTPException(status_code=400, detail="This is not a group chat")
+    
+    # 2. یافتن رکورد عضویت کاربر جاری
+    participant = await db.execute(
+        select(ChatParticipant).where(
+            ChatParticipant.chat_id == chat_id,
+            ChatParticipant.user_id == current_user.id
+        )
+    )
+    participant = participant.scalar_one_or_none()
+    if not participant:
+        raise HTTPException(status_code=403, detail="You are not a member of this group")
+    
+    # 3. حذف عضویت کاربر
+    await db.delete(participant)
+    await db.flush()  # اعمال تغییرات برای شمارش اعضای باقی‌مانده
+    
+    # 4. تعیین اینکه آیا گروه باید حذف شود
+    should_delete_group = False
+    
+    # شرط اول: کاربر سازنده گروه است
+    if chat.created_by_id == current_user.id:
+        should_delete_group = True
+    else:
+        # شرط دوم: تعداد اعضای باقی‌مانده صفر است
+        remaining_count = await db.scalar(
+            select(func.count()).select_from(ChatParticipant)
+            .where(ChatParticipant.chat_id == chat_id)
+        )
+        if remaining_count == 0:
+            should_delete_group = True
+    
+    # 5. اجرای عملیات نهایی
+    if should_delete_group:
+        await db.delete(chat)  # با cascade تمام وابسته‌ها حذف می‌شوند
+        await db.commit()
+        # گروه حذف شد (مشتری می‌تواند با status 204 متوجه شود)
+    else:
+        await db.commit()
+        # فقط کاربر خارج شد
+    
+    # پاسخ بدون محتوا (موفقیت‌آمیز)
+
+@router.post("/groups/{chat_id}/members", response_model=GroupOut, status_code=status.HTTP_201_CREATED)
+async def add_members_to_group(
+    chat_id: int,
+    request: AddMembersRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. دریافت گروه با بارگذاری اعضا
+    result = await db.execute(
+        select(Chat)
+        .options(selectinload(Chat.participants).selectinload(ChatParticipant.user))
+        .where(Chat.id == chat_id)
+    )
+    chat = result.scalar_one_or_none()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    if chat.chat_type != ChatType.GROUP:
+        raise HTTPException(status_code=400, detail="This is not a group chat")
+    
+    # 2. بررسی عضویت کاربر جاری
+    is_member = any(p.user_id == current_user.id for p in chat.participants)
+    if not is_member:
+        raise HTTPException(status_code=403, detail="You are not a member of this group")
+    
+    # 3. بررسی یوزرنیم‌های ارسالی و یافتن کاربران
+    users_to_add = []
+    for username in request.usernames:
+        # یافتن کاربر با یوزرنیم
+        user = await db.execute(
+            select(User).where(User.username == username)
+        )
+        user = user.scalar_one_or_none()
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail=f"User with username '{username}' not found"
+            )
+        
+        # بررسی اینکه کاربر خودش نباشد
+        if user.id == current_user.id:
+            continue  # یا می‌توانید خطا دهید، اما بهتر است از اضافه کردن خود صرف‌نظر کنیم
+        
+        # بررسی تنظیمات حریم خصوصی
+        if not user.allow_group_invites:
+            raise HTTPException(
+                status_code=403,
+                detail=f"User '{username}' does not allow group invites"
+            )
+        
+        # بررسی اینکه قبلاً عضو نباشد
+        already_member = any(p.user_id == user.id for p in chat.participants)
+        if already_member:
+            raise HTTPException(
+                status_code=400,
+                detail=f"User '{username}' is already a member of this group"
+            )
+        
+        users_to_add.append(user)
+    
+    # 4. افزودن کاربران جدید به گروه
+    for user in users_to_add:
+        new_participant = ChatParticipant(chat_id=chat.id, user_id=user.id)
+        db.add(new_participant)
+    
+    await db.commit()
+    
+    # 5. بازیابی مجدد گروه با اعضای به‌روز شده برای خروجی
+    result = await db.execute(
+        select(Chat)
+        .options(selectinload(Chat.participants).selectinload(ChatParticipant.user))
+        .where(Chat.id == chat.id)
+    )
+    chat_with_members = result.scalar_one()
+    
+    members_out = [
+        UserPublic.model_validate(p.user) for p in chat_with_members.participants
+    ]
+    
+    return GroupOut(
+        id=chat_with_members.id,
+        chat_type=chat_with_members.chat_type.value,
+        created_at=chat_with_members.created_at,
+        name=chat_with_members.name,
+        description=chat_with_members.description,
+        profile_photo_url=chat_with_members.profile_photo_url,
+        members=members_out
+    )
 

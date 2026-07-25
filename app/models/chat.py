@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Enum, UniqueConstraint
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, Enum, String, UniqueConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.session import Base
@@ -7,18 +7,28 @@ import enum
 # تعریف نوع چت (فعلاً فقط DM، بعداً GROUP و CHANNEL اضافه می‌شود)
 class ChatType(str, enum.Enum):
     DM = "dm"
+    GROUP = "group"
 
 class Chat(Base):
     __tablename__ = "chats"
 
     id = Column(Integer, primary_key=True, index=True)
     chat_type = Column(Enum(ChatType), nullable=False, default=ChatType.DM)
+
+    # 👇 فیلدهای جدید مختص گروه
+    name = Column(String(100), nullable=True)  # برای DMها null است
+    description = Column(String(500), nullable=True)
+    profile_photo_url = Column(String(255), nullable=True)
+    created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # روابط
     participants = relationship("ChatParticipant", back_populates="chat", cascade="all, delete-orphan")
     messages = relationship("Message", back_populates="chat", cascade="all, delete-orphan")
+    created_by = relationship("User", foreign_keys=[created_by_id])  # ارتباط با سازنده
 
     def __repr__(self):
         return f"<Chat {self.id} ({self.chat_type})>"
