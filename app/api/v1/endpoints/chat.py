@@ -203,7 +203,7 @@ async def send_media_message(
     is_sent = not is_scheduled
 
     # 2. ذخیره فایل روی دیسک محلی
-    file_path = await save_upload_file(file)
+    file_path, file_size = await save_upload_file(file)
     
     # 3. تشخیص نوع رسانه (بر اساس MIME type یا پسوند)
     mime_type = file.content_type or "application/octet-stream"
@@ -232,7 +232,7 @@ async def send_media_message(
         message_id=new_message.id,
         filename=file.filename,
         file_path=file_path,
-        file_size=len(await file.read()), # نکته: فایل دوبار خوانده نشود، بهتر است کد اصلاح شود
+        file_size=file_size, # نکته: فایل دوبار خوانده نشود، بهتر است کد اصلاح شود
         mime_type=mime_type,
         media_type=media_type_enum
     )

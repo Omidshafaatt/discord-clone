@@ -9,12 +9,12 @@ from app.db.session import get_db
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
 # ---------------- 4. پروفایل خود (Profile - Private) ----------------
-@router.get("/profile/me", response_model=UserPrivate)
+@router.get("/me", response_model=UserPrivate)
 async def get_my_profile(current_user: User = Depends(get_current_user)):
     return current_user
 
 # ---------------- 5. پروفایل دیگران (Profile - Public) ----------------
-@router.get("/profile/{username}", response_model=UserPublic)
+@router.get("/{username}", response_model=UserPublic)
 async def get_user_profile(username: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     user = await get_user_by_username(db, username)
     if not user:
@@ -22,7 +22,7 @@ async def get_user_profile(username: str, db: AsyncSession = Depends(get_db), cu
     return user
 
 # ---------------- 6. ویرایش پروفایل خود (Edit Profile) ----------------
-@router.patch("/profile/me", response_model=UserPrivate)
+@router.patch("/me", response_model=UserPrivate)
 async def update_my_profile(
     update_data: UserUpdate,
     current_user: User = Depends(get_current_user),

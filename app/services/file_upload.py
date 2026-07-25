@@ -16,7 +16,8 @@ async def save_upload_file(upload_file: UploadFile) -> str:
     # ذخیره فایل به صورت Async
     async with aiofiles.open(file_path, 'wb') as out_file:
         content = await upload_file.read()
+        file_size = len(content)
         await out_file.write(content)
     
     # برگرداندن آدرس نسبی فایل (که بعداً در Media ذخیره می‌شود)
-    return file_path
+    return file_path, file_size
