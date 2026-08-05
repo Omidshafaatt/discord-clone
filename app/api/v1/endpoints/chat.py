@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import func, select, desc, and_
@@ -52,7 +52,7 @@ async def start_dm_chat(
     }
 
 # 2. لیست چت‌های کاربر (با اطلاعات کاربر مقابل)
-@router.get("/", response_model=list[ChatOut])
+@router.get("/", response_model=List[ChatOut])
 async def get_user_chats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -173,8 +173,8 @@ async def send_text_message(
 @router.post("/{chat_id}/messages/media", response_model=MessageOut)
 async def send_media_message(
     chat_id: int,
-    text_content: str | None = Form(None),  # استفاده از Form به جای متغیر ساده
-    scheduled_at: datetime | None = Form(None), # دریافت زمان از طریق فیلد فرم
+    text_content: Optional[str] = Form(None),  # استفاده از Form به جای متغیر ساده
+    scheduled_at: Optional[datetime] = Form(None), # دریافت زمان از طریق فیلد فرم
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
