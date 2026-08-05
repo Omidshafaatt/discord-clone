@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import AsyncSessionLocal, engine, get_db, Base
 from app.core.config import settings
@@ -58,6 +59,14 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(chat.router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.websocket("/ws")
