@@ -1,18 +1,15 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import AuthPage from './pages/AuthPage';
 
-// Placeholder components for now – we'll create them later
-const Home = () => <div>Home Page (Chat List will go here)</div>;
+const Home = () => <div>Home Page – Chat List</div>;
 
 function App() {
   return (
     <AuthProvider>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/auth" element={<AuthPage />} />
         <Route
           path="/"
           element={
@@ -21,7 +18,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-        {/* Add more protected routes later */}
       </Routes>
     </AuthProvider>
   );
