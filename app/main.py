@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import AsyncSessionLocal, engine, get_db, Base
 from app.core.config import settings
@@ -52,6 +53,9 @@ async def lifespan(app: FastAPI):
 
 # پاس دادن lifespan به FastAPI
 app = FastAPI(title="Messaging Service", version="1.0.0", lifespan=lifespan)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 

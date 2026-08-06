@@ -3,5 +3,6 @@
 index.html
 uploads/
 static/frontend/node_modules/
+static/profiles
 frontend/dist/
 frontend/.env

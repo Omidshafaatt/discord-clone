@@ -98,7 +98,10 @@ export default function AuthPage() {
         formData.append('password', data.password);
         if (data.username) formData.append('username', data.username);
         if (data.bio) formData.append('bio', data.bio);
-        if (profilePhoto) formData.append('profile_photo', profilePhoto);
+        if (profilePhoto) {
+            formData.append('profile_photo', profilePhoto);
+            console.log('📸 File appended:', profilePhoto.name, profilePhoto.size); // 👈 Add this
+        }
 
         const result = await registerUser(formData);
         setLoading(false);

@@ -2,8 +2,10 @@ import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthPage from './pages/AuthPage';
+import ProfilePage from './pages/ProfilePage';
+import Navbar from './components/Navbar';
 
-const Home = () => <div>Home Page – Chat List</div>;
+const Home = () => <div>Home Page – Chat List (coming soon)</div>;
 
 function App() {
   return (
@@ -14,7 +16,32 @@ function App() {
           path="/"
           element={
             <ProtectedRoute>
-              <Home />
+              <>
+                <Navbar />
+                <Home />
+              </>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <>
+                <Navbar />
+                <ProfilePage />
+              </>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile/:username"
+          element={
+            <ProtectedRoute>
+              <>
+                <Navbar />
+                <ProfilePage />
+              </>
             </ProtectedRoute>
           }
         />
