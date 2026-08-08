@@ -52,6 +52,7 @@ async def start_dm_chat(
     }
 
 # 2. لیست چت‌های کاربر (با اطلاعات کاربر مقابل)
+# 2. لیست چت‌های کاربر (با اطلاعات کاربر مقابل)
 @router.get("/", response_model=List[ChatOut])
 async def get_user_chats(
     current_user: User = Depends(get_current_user),
@@ -69,24 +70,36 @@ async def get_user_chats(
     
     response_data = []
     for chat in chats:
-        # پیدا کردن کاربر مقابل
-        other_user = None
-        for participant in chat.participants:
-            if participant.user_id != current_user.id:
-                other_user = participant.user
-                break
-        
-        # فقط اگر یک DM بود و کاربر مقابل پیدا شد، اضافه کن
-        if other_user:
+        if chat.chat_type == ChatType.DM:
+            # Find the other user
+            other_user = None
+            for participant in chat.participants:
+                if participant.user_id != current_user.id:
+                    other_user = participant.user
+                    break
+            if other_user is None:
+                continue  # skip DM without other user
             response_data.append({
                 "id": chat.id,
                 "chat_type": chat.chat_type.value,
                 "created_at": chat.created_at,
-                "other_user": other_user
+                "other_user": other_user,
+                "name": None,
+                "profile_photo_url": None,
+                "members_count": None,
             })
-            
+        else:  # group
+            response_data.append({
+                "id": chat.id,
+                "chat_type": chat.chat_type.value,
+                "created_at": chat.created_at,
+                "other_user": None,
+                "name": chat.name,
+                "profile_photo_url": chat.profile_photo_url,
+                "members_count": len(chat.participants),
+            })
     return response_data
-
+            
 # ---------------- 8. ارسال پیام متنی در یک چت ----------------
 @router.post("/{chat_id}/messages", response_model=MessageOut)
 async def send_text_message(

@@ -19,14 +19,20 @@ import {
     AttachFile as AttachFileIcon,
     ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
+import { Info as InfoIcon } from '@mui/icons-material';
+import { Group as GroupIcon } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import useChatStore from '../store/useChatStore';
 import { getFullImageUrl } from '../lib/utils';
+import GroupDetailModal from '../components/GroupDetailModal';
 
 export default function ChatView() {
     const { chatId } = useParams();
     const navigate = useNavigate();
     const { user, userId } = useAuth();
+
+    console.log(chatId);
+    
 
     const {
         messages,
@@ -38,16 +44,20 @@ export default function ChatView() {
         fetchChats,
     } = useChatStore();
 
+    const chat = getChat(chatId);
+    const chatType = chat?.chat_type || 'dm';
+    const otherUser = chatType === 'dm' ? chat?.other_user : null;
+    const groupName = chatType === 'group' ? chat?.name : null;
+    const groupAvatar = chatType === 'group' ? chat?.profile_photo_url : null;
+
     const [newMessage, setNewMessage] = useState('');
     const [sending, setSending] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
+    const [detailModalOpen, setDetailModalOpen] = useState(false);
 
     const wsRef = useRef(null);
     const messagesEndRef = useRef(null);
-
-    const chat = getChat(chatId);
-    const otherUser = chat?.other_user || null;
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -174,7 +184,9 @@ export default function ChatView() {
 
         const senderDisplayName = isOwn
             ? user.name
-            : otherUser?.name || msg.sender_name || 'Unknown';
+            : chatType === 'group'
+                ? msg.sender_name || 'Unknown'
+                : otherUser?.name || msg.sender_name || 'Unknown';
         const avatarLetter = senderDisplayName[0]?.toUpperCase() || 'U';
         const avatarSrc = !isOwn && otherUser?.profile_photo_url
             ? getFullImageUrl(otherUser.profile_photo_url)
@@ -252,19 +264,18 @@ export default function ChatView() {
                 <IconButton onClick={() => navigate('/')} sx={{ mr: 1 }}>
                     <ArrowBackIcon />
                 </IconButton>
+                <IconButton onClick={() => setDetailModalOpen(true)} sx={{ ml: 'auto' }}>
+                    <InfoIcon />
+                </IconButton>
                 <Avatar
-                    src={otherUser?.profile_photo_url ? getFullImageUrl(otherUser.profile_photo_url) : null}
-                    sx={{ width: 40, height: 40, cursor: otherUser ? 'pointer' : 'default' }}
-                    onClick={goToProfile}
+                    src={chatType === 'group' ? getFullImageUrl(groupAvatar) : (otherUser?.profile_photo_url ? getFullImageUrl(otherUser.profile_photo_url) : null)}
+                    sx={{ width: 40, height: 40, cursor: 'pointer' }}
+                    onClick={chatType === 'dm' ? goToProfile : () => { }}
                 >
-                    {otherUser?.name?.[0]?.toUpperCase() || 'C'}
+                    {chatType === 'group' ? <GroupIcon /> : (otherUser?.name?.[0]?.toUpperCase() || 'C')}
                 </Avatar>
-                <Typography
-                    variant="h6"
-                    sx={{ ml: 2, cursor: otherUser ? 'pointer' : 'default' }}
-                    onClick={goToProfile}
-                >
-                    {otherUser?.name || 'Chat'}
+                <Typography variant="h6" sx={{ ml: 2 }}>
+                    {chatType === 'group' ? groupName : otherUser?.name || 'Chat'}
                 </Typography>
             </Paper>
 
@@ -315,6 +326,12 @@ export default function ChatView() {
                     {sending ? <CircularProgress size={24} /> : <SendIcon />}
                 </IconButton>
             </Box>
+
+            <GroupDetailModal
+                open={detailModalOpen}
+                onClose={() => setDetailModalOpen(false)}
+                chatId={chatId}
+            />
         </Container>
     );
 }

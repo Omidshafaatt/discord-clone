@@ -21,12 +21,17 @@ import {
     Alert,
     Divider,
 } from '@mui/material';
+import SpeedDial from '@mui/material/SpeedDial';
+import SpeedDialAction from '@mui/material/SpeedDialAction';
+import { Chat as ChatIcon, GroupAdd as GroupAddIcon } from '@mui/icons-material';
+import { Group as GroupIcon } from '@mui/icons-material';
 import {
     Add as AddIcon,
     Person as PersonIcon,
 } from '@mui/icons-material';
 import useChatStore from '../store/useChatStore';
 import { getFullImageUrl } from '../lib/utils';
+import GroupCreateModal from '../components/GroupCreateModal';
 
 export default function ChatList() {
     const navigate = useNavigate();
@@ -38,6 +43,7 @@ export default function ChatList() {
     const [targetUsername, setTargetUsername] = useState('');
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState('');
+    const [groupModalOpen, setGroupModalOpen] = useState(false);
 
     useEffect(() => {
         fetchChats();
@@ -68,12 +74,18 @@ export default function ChatList() {
         if (chat.chat_type === 'dm' && chat.other_user) {
             return chat.other_user.name || chat.other_user.username;
         }
-        return chat.name || 'Unknown';
+        if (chat.chat_type === 'group') {
+            return chat.name || 'Group';
+        }
+        return 'Unknown';
     };
 
     const getChatAvatar = (chat) => {
         if (chat.chat_type === 'dm' && chat.other_user) {
             return getFullImageUrl(chat.other_user.profile_photo_url);
+        }
+        if (chat.chat_type === 'group') {
+            return getFullImageUrl(chat.profile_photo_url);
         }
         return null;
     };
@@ -128,12 +140,20 @@ export default function ChatList() {
                                 >
                                     <ListItemAvatar>
                                         <Avatar src={getChatAvatar(chat)}>
-                                            {getChatName(chat)[0]?.toUpperCase() || 'U'}
+                                            {chat.chat_type === 'group' ? (
+                                                <GroupIcon />
+                                            ) : (
+                                                getChatName(chat)[0]?.toUpperCase() || 'U'
+                                            )}
                                         </Avatar>
                                     </ListItemAvatar>
                                     <ListItemText
                                         primary={getChatName(chat)}
-                                        secondary={chat.chat_type === 'group' ? 'Group chat' : 'Direct message'}
+                                        secondary={
+                                            chat.chat_type === 'group'
+                                                ? `Group • ${chat.members_count || 0} members`
+                                                : 'Direct message'
+                                        }
                                     />
                                     {chat.unread_count > 0 && (
                                         <Box
@@ -190,6 +210,28 @@ export default function ChatList() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* New Group Dialog */}
+            <SpeedDial
+                ariaLabel="New conversation"
+                sx={{ position: 'fixed', bottom: 16, right: 16 }}
+                icon={<AddIcon />}
+            >
+                <SpeedDialAction
+                    icon={<ChatIcon />}
+                    tooltipTitle="New DM"
+                    onClick={() => setDialogOpen(true)}
+                />
+                <SpeedDialAction
+                    icon={<GroupAddIcon />}
+                    tooltipTitle="New Group"
+                    onClick={() => setGroupModalOpen(true)}
+                />
+            </SpeedDial>
+            <GroupCreateModal
+                open={groupModalOpen}
+                onClose={() => setGroupModalOpen(false)}
+            />
         </Container>
     );
 }

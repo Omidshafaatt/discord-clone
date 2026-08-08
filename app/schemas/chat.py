@@ -11,9 +11,11 @@ class ChatOut(BaseModel):
     id: int
     chat_type: str
     created_at: datetime
-    
-    # برای DM، اطلاعات کاربر مقابل را برمی‌گردانیم
-    other_user: UserPublic 
+    other_user: Optional[UserPublic] = None
+    # Group fields (optional)
+    name: Optional[str] = None
+    profile_photo_url: Optional[str] = None
+    members_count: Optional[int] = None
 
     class Config:
         from_attributes = True
