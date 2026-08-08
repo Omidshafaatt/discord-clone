@@ -190,40 +190,10 @@ export default function ProfilePage() {
         <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
             <Paper elevation={2} sx={{ p: 4, borderRadius: 3 }}>
                 {/* Header */}
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={3} sx={{ borderBottom: 1 }}>
                     <Typography variant="h4" fontWeight="bold">
-                        {isOwnProfile ? 'My Profile' : `Profile: ${profile.name}`}
+                        {isOwnProfile ? 'Profile' : `Profile: ${profile.name}`}
                     </Typography>
-                    {isOwnProfile && !isEditing && (
-                        <Button
-                            variant="outlined"
-                            startIcon={<EditIcon />}
-                            onClick={() => setIsEditing(true)}
-                        >
-                            Edit Profile
-                        </Button>
-                    )}
-                    {isOwnProfile && isEditing && (
-                        <Box>
-                            <Button
-                                variant="outlined"
-                                color="error"
-                                startIcon={<CancelIcon />}
-                                onClick={handleCancel}
-                                sx={{ mr: 1 }}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                variant="contained"
-                                startIcon={<SaveIcon />}
-                                onClick={handleSave}
-                                disabled={saving}
-                            >
-                                {saving ? 'Saving...' : 'Save'}
-                            </Button>
-                        </Box>
-                    )}
                 </Box>
 
                 {saveError && (
@@ -232,23 +202,21 @@ export default function ProfilePage() {
                     </Alert>
                 )}
 
-                <Grid container spacing={4}>
-                    {/* Avatar Section */}
-                    <Grid item xs={12} md={4} display="flex" flexDirection="column" alignItems="center">
-                        <Box position="relative">
+                <Grid container spacing={4} alignItems='center' justifyContent='center'>
+                    {/* Info Section */}
+                    <Grid item xs={12} md={8} sx={{ width: '100%' }}>
+                        <Box position="relative" sx={{ display: 'flex', justifyContent: 'center' }}>
                             <Avatar
                                 src={getFullImageUrl(photoPreview || profile?.profile_photo_url)}
                                 sx={{ width: 150, height: 150, mb: 2 }}
-                            >
-                                {profile?.name?.[0]?.toUpperCase() || 'U'}
-                            </Avatar>
+                            />
                             {isEditing && (
                                 <IconButton
                                     component="label"
                                     sx={{
-                                        position: 'absolute',
-                                        bottom: 8,
-                                        right: 0,
+                                        position: 'relative',
+                                        bottom: 50,
+                                        right: '-30%',
                                         backgroundColor: 'background.paper',
                                         boxShadow: 1,
                                     }}
@@ -268,10 +236,6 @@ export default function ProfilePage() {
                                 {profilePhoto.name}
                             </Typography>
                         )}
-                    </Grid>
-
-                    {/* Info Section */}
-                    <Grid item xs={12} md={8}>
                         {!isEditing ? (
                             // View Mode
                             <Box>
@@ -360,6 +324,49 @@ export default function ProfilePage() {
                                 />
                             </Box>
                         )}
+                    </Grid>
+
+                    {/* Buttons */}
+                    <Grid container spacing={2} sx={{ width: '100%' }}>
+                        <Grid item xs={6} sx={{ width: '100%' }}>
+                            {isOwnProfile && !isEditing && (
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<EditIcon />}
+                                    onClick={() => setIsEditing(true)}
+                                    fullWidth
+                                >
+                                    Edit Profile
+                                </Button>
+                            )}
+                        </Grid>
+                        <Grid item xs={6} sx={{ width: '100%' }}>
+                            {isOwnProfile && isEditing && (
+                                <Box sx={{ display: 'flex', gap: 1, width: '100%' }}>
+                                    <Button
+                                        variant="contained"
+                                        onClick={handleSave}
+                                        disabled={saving}
+                                        sx={{
+                                            flex: 1,
+                                        }}
+                                    >
+                                        {saving ? 'Saving...' : 'Save Changes'}
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        color="error"
+                                        onClick={handleCancel}
+                                        sx={{
+                                            flex: '0 0 auto', // 👈 Prevents shrinking, uses content width
+                                            minWidth: '240px', // 👈 Optional: set a minimum width
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </Box>
+                            )}
+                        </Grid>
                     </Grid>
                 </Grid>
             </Paper>

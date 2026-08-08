@@ -3,9 +3,9 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthPage from './pages/AuthPage';
 import ProfilePage from './pages/ProfilePage';
+import ChatList from './pages/ChatList';
 import Navbar from './components/Navbar';
-
-const Home = () => <div>Home Page – Chat List (coming soon)</div>;
+import ChatView from './pages/ChatView';
 
 function App() {
   return (
@@ -18,7 +18,7 @@ function App() {
             <ProtectedRoute>
               <>
                 <Navbar />
-                <Home />
+                <ChatList />
               </>
             </ProtectedRoute>
           }
@@ -41,6 +41,17 @@ function App() {
               <>
                 <Navbar />
                 <ProfilePage />
+              </>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chat/:chatId"
+          element={
+            <ProtectedRoute>
+              <>
+                <Navbar />
+                <ChatView />
               </>
             </ProtectedRoute>
           }

@@ -1,4 +1,4 @@
-import { AppBar, Toolbar, Typography, Button, Avatar, Box, IconButton, Menu, MenuItem } from '@mui/material';
+import { AppBar, Toolbar, Typography, Avatar, Box, IconButton, Menu, MenuItem } from '@mui/material';
 import { AccountCircle, Logout } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -30,7 +30,7 @@ export default function Navbar() {
                     Discord Clone
                 </Typography>
                 {user && (
-                    <Box display="flex" alignItems="center">
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <IconButton onClick={handleMenu} color="inherit">
                             <Avatar
                                 src={getFullImageUrl(user.profile_photo_url)}

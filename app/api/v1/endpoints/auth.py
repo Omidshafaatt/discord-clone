@@ -80,7 +80,10 @@ async def register(
         profile_photo_url=photo_url
     )
     
-    access_token = create_access_token(data={"sub": new_user.phone_number})
+    access_token = create_access_token(data={
+    "sub": new_user.phone_number,
+    "user_id": new_user.id   # 👈 add this
+    })
     return {"access_token": access_token, "token_type": "bearer"}
 
 # ---------------- 2. ورود (Login) ----------------
@@ -97,7 +100,10 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
             detail="Incorrect phone number or password"
         )
     
-    access_token = create_access_token(data={"sub": user.phone_number})
+    access_token = create_access_token(data={
+    "sub": user.phone_number,
+    "user_id": user.id   # 👈 add this
+    })
     return {"access_token": access_token, "token_type": "bearer"}
 
 # ---------------- 3. خروج (Logout) ----------------
