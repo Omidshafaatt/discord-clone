@@ -20,10 +20,11 @@ class LoginForm:
 
 # 3. برای خروجی پروفایل عمومی (دیگر کاربران)
 class UserPublic(BaseModel):
+    id: int
     name: str
-    username: Optional[str]
-    profile_photo_url: Optional[str]
-    bio: Optional[str]
+    username: str
+    profile_photo_url: Optional[str] = None
+    bio: Optional[str] = None
 
     class Config:
         from_attributes = True

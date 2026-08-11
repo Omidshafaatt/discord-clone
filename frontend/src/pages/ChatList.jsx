@@ -25,6 +25,7 @@ import SpeedDial from '@mui/material/SpeedDial';
 import SpeedDialAction from '@mui/material/SpeedDialAction';
 import { Chat as ChatIcon, GroupAdd as GroupAddIcon } from '@mui/icons-material';
 import { Group as GroupIcon } from '@mui/icons-material';
+import ChannelCreateModal from '../components/ChannelCreateModal';
 import {
     Add as AddIcon,
     Person as PersonIcon,
@@ -44,6 +45,7 @@ export default function ChatList() {
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState('');
     const [groupModalOpen, setGroupModalOpen] = useState(false);
+    const [channelModalOpen, setChannelModalOpen] = useState(false);
 
     useEffect(() => {
         fetchChats();
@@ -74,8 +76,8 @@ export default function ChatList() {
         if (chat.chat_type === 'dm' && chat.other_user) {
             return chat.other_user.name || chat.other_user.username;
         }
-        if (chat.chat_type === 'group') {
-            return chat.name || 'Group';
+        if (chat.chat_type === 'group' || chat.chat_type === 'channel') {
+            return chat.name || (chat.chat_type === 'channel' ? 'Channel' : 'Group');
         }
         return 'Unknown';
     };
@@ -84,7 +86,7 @@ export default function ChatList() {
         if (chat.chat_type === 'dm' && chat.other_user) {
             return getFullImageUrl(chat.other_user.profile_photo_url);
         }
-        if (chat.chat_type === 'group') {
+        if (chat.chat_type === 'group' || chat.chat_type === 'channel') {
             return getFullImageUrl(chat.profile_photo_url);
         }
         return null;
@@ -131,7 +133,7 @@ export default function ChatList() {
                         {chats.map((chat, index) => (
                             <React.Fragment key={chat.id}>
                                 <ListItem
-                                    button
+                                    button="true"
                                     onClick={() => navigate(`/chat/${chat.id}`)}
                                     sx={{
                                         borderRadius: 2,
@@ -140,8 +142,10 @@ export default function ChatList() {
                                 >
                                     <ListItemAvatar>
                                         <Avatar src={getChatAvatar(chat)}>
-                                            {chat.chat_type === 'group' ? (
-                                                <GroupIcon />
+                                            {chat.chat_type === 'channel' ? (
+                                                '#'
+                                            ) : chat.chat_type === 'group' ? (
+                                                <GroupAddIcon />
                                             ) : (
                                                 getChatName(chat)[0]?.toUpperCase() || 'U'
                                             )}
@@ -150,9 +154,11 @@ export default function ChatList() {
                                     <ListItemText
                                         primary={getChatName(chat)}
                                         secondary={
-                                            chat.chat_type === 'group'
-                                                ? `Group • ${chat.members_count || 0} members`
-                                                : 'Direct message'
+                                            chat.chat_type === 'channel'
+                                                ? `Channel • ${chat.members_count || 0} members${chat.is_public ? ' • Public' : ''}`
+                                                : chat.chat_type === 'group'
+                                                    ? `Group • ${chat.members_count || 0} members`
+                                                    : 'Direct message'
                                         }
                                     />
                                     {chat.unread_count > 0 && (
@@ -227,11 +233,17 @@ export default function ChatList() {
                     tooltipTitle="New Group"
                     onClick={() => setGroupModalOpen(true)}
                 />
+                <SpeedDialAction
+                    icon={'#'}
+                    tooltipTitle="New Channel"
+                    onClick={() => setChannelModalOpen(true)}
+                />
             </SpeedDial>
             <GroupCreateModal
                 open={groupModalOpen}
                 onClose={() => setGroupModalOpen(false)}
             />
+            <ChannelCreateModal open={channelModalOpen} onClose={() => setChannelModalOpen(false)} />
         </Container>
     );
 }

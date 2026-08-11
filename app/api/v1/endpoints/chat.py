@@ -1140,3 +1140,26 @@ async def create_channel_role(
     await db.commit()
     await db.refresh(new_role)
     return new_role
+
+@router.get("/channels/{channel_id}/roles", response_model=List[RoleOut])
+async def get_channel_roles(
+    channel_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # Check membership
+    chat = await db.get(Chat, channel_id)
+    if not chat or chat.chat_type != ChatType.CHANNEL:
+        raise HTTPException(404, "Channel not found")
+    is_member = await db.execute(
+        select(ChatParticipant).where(
+            ChatParticipant.chat_id == channel_id,
+            ChatParticipant.user_id == current_user.id
+        )
+    )
+    if not is_member.scalar_one_or_none():
+        raise HTTPException(403, "You are not a member of this channel")
+    roles = await db.execute(
+        select(Role).where(Role.channel_id == channel_id)
+    )
+    return roles.scalars().all()

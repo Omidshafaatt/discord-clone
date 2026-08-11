@@ -89,6 +89,8 @@ export const AuthProvider = ({ children }) => {
       decodeAndSetUserId(access_token);
       api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       await fetchUser();
+      useChatStore.getState().reset(); // clear old chats
+      useChatStore.getState().fetchChats();
       return { success: true };
     } catch (error) {
       const message = error.response?.data?.detail || 'Login failed';
