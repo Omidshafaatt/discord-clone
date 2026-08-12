@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import func, select, desc, and_
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_
 import json
@@ -234,6 +234,7 @@ async def send_text_message(
         id=new_message.id,
         chat_id=new_message.chat_id,
         sender_id=new_message.sender_id,
+        sender_name=current_user.name,
         content=new_message.content,
         message_type=new_message.message_type.value,
         created_at=new_message.created_at,
@@ -330,6 +331,7 @@ async def send_media_message(
         id=new_message.id,
         chat_id=new_message.chat_id,
         sender_id=new_message.sender_id,
+        sender_name=current_user.name,
         content=new_message.content,
         message_type=new_message.message_type.value,
         created_at=new_message.created_at,
@@ -357,7 +359,10 @@ async def get_chat_history(
 
     result = await db.execute(
         select(Message)
-        .options(selectinload(Message.media))
+        .options(
+            joinedload(Message.sender),   # 👈 load sender user
+            selectinload(Message.media)
+        )
         .where(
             Message.chat_id == chat_id,
             Message.is_deleted == False,
@@ -370,13 +375,14 @@ async def get_chat_history(
         .limit(limit)
     )
 
-    messages = result.scalars().all()
+    messages = result.unique().scalars().all()
     msgOuts: List[MessageOut] = []
     for message in messages:
         msgOut = MessageOut(
             id=message.id,
             chat_id=message.chat_id,
             sender_id=message.sender_id,
+            sender_name=message.sender.name if message.sender else None,   # 👈 add this
             content=message.content,
             message_type=message.message_type.value,
             created_at=message.created_at,
@@ -508,7 +514,10 @@ async def search_messages_in_chat(
 
     stmt = (
         select(Message)
-        .options(selectinload(Message.media))
+        .options(
+            joinedload(Message.sender),
+            selectinload(Message.media)
+        )
         .where(
             and_(
                 Message.chat_id == chat_id,
@@ -528,6 +537,7 @@ async def search_messages_in_chat(
         id=msg.id,
         chat_id=msg.chat_id,
         sender_id=msg.sender_id,
+        sender_name=msg.sender.name if msg.sender else None,
         content=msg.content,
         message_type=msg.message_type.value,
         created_at=msg.created_at,

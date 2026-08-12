@@ -79,7 +79,8 @@ const useChatStore = create((set, get) => ({
 
   // Get a chat by ID
   getChat: (chatId) => {
-    return get().chats.find((c) => c.id === parseInt(chatId));
+    const state = get();
+    return state.chats.find((chat) => Number(chat.id) === Number(chatId));
   },
 
   // Reset store (for logout)
@@ -235,12 +236,13 @@ const useChatStore = create((set, get) => ({
     try {
       const response = await api.get(`/chat/channels/${channelId}`);
       console.log('✅ Backend response:', response.data);
-      console.log('✅ Members in response:', response.data.members);
 
       // ---- Update the store safely ----
       set((state) => {
-        // Remove any existing entry with the same ID (prevents duplicates)
-        const filteredChats = state.chats.filter((chat) => chat.id !== channelId);
+        // Remove any existing entry with the same ID (convert both to number)
+        const filteredChats = state.chats.filter(
+          (chat) => Number(chat.id) !== Number(channelId)
+        );
         // Then add the new data
         const updatedChats = [...filteredChats, response.data];
         console.log('📦 Updated chats after merge (deduplicated):', updatedChats);
@@ -249,7 +251,9 @@ const useChatStore = create((set, get) => ({
 
       // ---- Verify the store after update ----
       const updatedStore = get();
-      const mergedChat = updatedStore.chats.find((c) => c.id === channelId);
+      const mergedChat = updatedStore.chats.find(
+        (c) => Number(c.id) === Number(channelId)
+      );
       console.log('🔍 Merged chat from store:', mergedChat);
       console.log('🔍 Has members?', !!mergedChat?.members);
 

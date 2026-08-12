@@ -12,14 +12,12 @@ class MessageOut(BaseModel):
     id: int
     chat_id: int
     sender_id: int
+    sender_name: Optional[str] = None   # 👈 add this
     content: Optional[str] = None
     message_type: str
     created_at: datetime
     is_deleted: bool
-    
-    # برای فایل‌های رسانه‌ای، آدرس فایل را برمی‌گردانیم
-    media_url: Optional[str] = None  
-
+    media_url: Optional[str] = None
     scheduled_at: Optional[datetime] = None
     is_sent: bool
 
