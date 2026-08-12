@@ -25,7 +25,7 @@ const useChatStore = create((set, get) => ({
     try {
       const response = await api.get(`/chat/${chatId}/messages?limit=50`);
       set((state) => ({
-        messages: { ...state.messages, [chatId]: response.data },
+        messages: { ...state.messages, [String(chatId)]: response.data, },
         currentChatId: chatId,
         loading: false,
       }));
@@ -43,38 +43,53 @@ const useChatStore = create((set, get) => ({
     }
   },
 
-  // Add a new message (called by WebSocket handler)
+  // src/store/useChatStore.js
+
   addMessage: (message) => {
-    const chatId = message.chat_id;
     set((state) => {
+      const chatId = String(message.chat_id);
       const existing = state.messages[chatId] || [];
-      // Avoid duplicates (by id or recent content)
-      const duplicate = existing.some((m) =>
-        m.id === message.id ||
-        (m.sender_id === message.sender_id &&
-          m.content === message.content &&
-          Math.abs(new Date(m.created_at) - new Date(message.created_at)) < 2000)
-      );
-      if (duplicate) return state;
+      // Prevent duplicates
+      if (existing.some((m) => m.id === message.id)) return state;
+      const updated = [...existing, message];
+      console.log('📥 addMessage: chatId:', chatId, 'message:', message);
       return {
         messages: {
           ...state.messages,
-          [chatId]: [...existing, message],
+          [chatId]: updated,
         },
       };
     });
   },
 
-  // Update message (edit/delete)
   updateMessage: (chatId, messageId, updates) => {
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [chatId]: (state.messages[chatId] || []).map((msg) =>
-          msg.id === messageId ? { ...msg, ...updates } : msg
-        ),
-      },
-    }));
+    set((state) => {
+      const key = String(chatId);
+      const messages = state.messages[key] || [];
+      const updated = messages.map((m) =>
+        m.id === messageId ? { ...m, ...updates } : m
+      );
+      return {
+        messages: {
+          ...state.messages,
+          [key]: updated,
+        },
+      };
+    });
+  },
+
+  removeTemporaryMessage: (chatId, tempId) => {
+    set((state) => {
+      const key = String(chatId);
+      const messages = state.messages[key] || [];
+      const filtered = messages.filter((m) => m.id !== tempId);
+      return {
+        messages: {
+          ...state.messages,
+          [key]: filtered,
+        },
+      };
+    });
   },
 
   // Get a chat by ID
@@ -397,6 +412,28 @@ const useChatStore = create((set, get) => ({
       console.error('Failed to fetch roles:', err);
       return [];
     }
+  },
+
+  // Add a temporary message (for upload progress)
+  addTemporaryMessage: (chatId, tempMessage) => {
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [chatId]: [...(state.messages[chatId] || []), tempMessage],
+      },
+    }));
+  },
+
+  // Update progress of a temporary message
+  updateTemporaryProgress: (chatId, tempId, progress) => {
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [chatId]: (state.messages[chatId] || []).map((m) =>
+          m.id === tempId ? { ...m, progress, uploading: true } : m
+        ),
+      },
+    }));
   },
 
 }));

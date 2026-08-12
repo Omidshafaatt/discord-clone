@@ -317,14 +317,17 @@ async def send_media_message(
         members = await db.execute(select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id))
         member_ids = [row[0] for row in members.all()]
         message_json = json.dumps({
+            "message_id": new_message.id, 
             "event": "new_message",
             "chat_id": chat_id,
             "sender_id": current_user.id,
             "sender_name": current_user.name,
-            "content": f"Sent a {media_type_enum.value}",
+            "content": text_content,                # caption (may be None)
             "media_url": file_path,
+            "message_type": "media",                # 👈 important
             "created_at": new_message.created_at.isoformat()
         })
+        print(f"📡 Broadcasting media to chat {chat_id}, members: {member_ids}")
         await manager.broadcast_to_chat(chat_id, member_ids, message_json)
 
     return MessageOut(
