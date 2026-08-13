@@ -22,15 +22,21 @@ import {
     Save as SaveIcon,
     Cancel as CancelIcon,
     PhotoCamera as PhotoCameraIcon,
+    Chat as ChatIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { getFullImageUrl } from '../lib/utils';
+import useChatStore from '../store/useChatStore';
 
 export default function ProfilePage() {
     const { username } = useParams(); // If viewing another user
     const { user, setUser } = useAuth();
     const navigate = useNavigate();
+
+    const { createChat } = useChatStore();
+    const [sendingMessage, setSendingMessage] = useState(false);
+    const [dmError, setDmError] = useState('');
 
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -51,6 +57,20 @@ export default function ProfilePage() {
 
     // Determine if viewing own profile
     const isOwnProfile = !username || (user && user.username === username);
+
+    const handleSendMessage = async () => {
+        if (!profile?.username) return;
+        setSendingMessage(true);
+        setDmError('');
+        try {
+            const chat = await createChat(profile.username);
+            navigate(`/chat/${chat.id}`);
+        } catch (err) {
+            setDmError(err.response?.data?.detail || 'Failed to start chat');
+        } finally {
+            setSendingMessage(false);
+        }
+    };
 
     // Fetch profile data
     useEffect(() => {
@@ -212,26 +232,26 @@ export default function ProfilePage() {
                             />
                             {isEditing && (
                                 <div style={{ position: 'relative' }}>
-                                <IconButton
-                                    component="label"
-                                    sx={{
-                                        position: 'absolute',
-                                        bottom: '10px',
-                                        left: '-50px',
-                                        backgroundColor: 'background.paper',
-                                        boxShadow: 1,
-                                        width: 50,
-                                        height: 50
-                                    }}
-                                >
-                                    <PhotoCameraIcon />
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleFileChange}
-                                        hidden
-                                    />
-                                </IconButton></div>
+                                    <IconButton
+                                        component="label"
+                                        sx={{
+                                            position: 'absolute',
+                                            bottom: '10px',
+                                            left: '-50px',
+                                            backgroundColor: 'background.paper',
+                                            boxShadow: 1,
+                                            width: 50,
+                                            height: 50
+                                        }}
+                                    >
+                                        <PhotoCameraIcon />
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleFileChange}
+                                            hidden
+                                        />
+                                    </IconButton></div>
                             )}
                         </Box>
                         {isEditing && profilePhoto && (
@@ -343,6 +363,22 @@ export default function ProfilePage() {
                                 >
                                     Edit Profile
                                 </Button>
+                            )}
+                            {!isOwnProfile && (
+                                <Box mt={3}>
+                                    {dmError && (
+                                        <Alert severity="error" sx={{ mb: 2 }}>{dmError}</Alert>
+                                    )}
+                                    <Button
+                                        variant="contained"
+                                        fullWidth
+                                        startIcon={<ChatIcon />}
+                                        onClick={handleSendMessage}
+                                        disabled={sendingMessage}
+                                    >
+                                        {sendingMessage ? 'Opening chat...' : 'Send Message'}
+                                    </Button>
+                                </Box>
                             )}
                         </Grid>
                         <Grid item xs={6} sx={{ width: '100%' }}>
