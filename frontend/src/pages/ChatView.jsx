@@ -1,4 +1,3 @@
-// src/pages/ChatView.jsx
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
