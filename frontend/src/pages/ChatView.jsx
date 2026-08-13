@@ -28,7 +28,8 @@ import {
     Info as InfoIcon,
     Group as GroupIcon,
     MoreVert as MoreVertIcon,
-    Schedule as ScheduleIcon
+    Schedule as ScheduleIcon,
+    Search as SearchIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import useChatStore from '../store/useChatStore';
@@ -39,6 +40,7 @@ import api from '../api/client'; // 👈 ADD THIS IMPORT
 import MediaUpload from '../components/MediaUpload';
 import MediaDisplay from '../components/MediaDisplay';
 import MessageComposer from '../components/MessageComposer';
+import SearchModal from '../components/SearchModal';
 
 export default function ChatView() {
     const { chatId } = useParams();
@@ -79,6 +81,7 @@ export default function ChatView() {
     const [loading, setLoading] = useState(true);
     const [groupDetailModalOpen, setGroupDetailModalOpen] = useState(false);
     const [channelDetailModalOpen, setChannelDetailModalOpen] = useState(false);
+    const [searchModalOpen, setSearchModalOpen] = useState(false);
 
     // ---- Message menu state ----
     const [anchorEl, setAnchorEl] = useState(null);
@@ -93,6 +96,12 @@ export default function ChatView() {
     const wsRef = useRef(null);
     const messagesEndRef = useRef(null);
     const fetchedChannelRef = useRef(false);
+    const messageRefs = useRef(new Map());
+
+    // Clear refs when chat changes
+    useEffect(() => {
+        messageRefs.current.clear();
+    }, [chatId]);
 
     // ---- Fetch channel details if needed ----
     useEffect(() => {
@@ -133,6 +142,25 @@ export default function ChatView() {
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, []);
+
+    const scrollToMessage = (messageId) => {
+        const element = messageRefs.current.get(messageId);
+        if (element) {
+            // Scroll to the element
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Highlight the message temporarily
+            element.style.transition = 'background-color 0.5s';
+            element.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
+            setTimeout(() => {
+                element.style.backgroundColor = '';
+            }, 2000);
+        }
+    };
+
+    const handleMessageClick = (msg) => {
+        scrollToMessage(msg.id);
+    };
 
     // ---- Load messages ----
     const loadMessages = useCallback(async () => {
@@ -344,7 +372,7 @@ export default function ChatView() {
     };
 
     // ---- Render message ----
-    const renderMessage = (msg) => {
+    const renderMessage = (msg, index) => {
         const isOwn = Number(msg.sender_id) === Number(userId);
         const isDeleted = msg.is_deleted;
         const isScheduled = msg.scheduled_at && !msg.is_sent;
@@ -369,7 +397,14 @@ export default function ChatView() {
 
         return (
             <Box
-                key={msg.id || `msg-${Date.now()}`}
+                key={msg.id || `msg-${index}`}
+                ref={(el) => {
+                    if (el) {
+                        messageRefs.current.set(msg.id, el);
+                    } else {
+                        messageRefs.current.delete(msg.id);
+                    }
+                }}
                 sx={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', mb: 2 }}
             >
                 {!isOwn && (
@@ -517,6 +552,9 @@ export default function ChatView() {
                         <InfoIcon />
                     </IconButton>
                 )}
+                <IconButton onClick={() => setSearchModalOpen(true)} sx={{ ml: 1 }}>
+                    <SearchIcon />
+                </IconButton>
             </Paper>
 
             {/* Messages */}
@@ -532,7 +570,7 @@ export default function ChatView() {
                 <List>
                     {chatMessages.map((msg, index) => (
                         <ListItem key={msg.id || `msg-${index}`} sx={{ p: 0 }}>
-                            {renderMessage(msg)}
+                            {renderMessage(msg, index)}
                         </ListItem>
                     ))}
                 </List>
@@ -615,6 +653,13 @@ export default function ChatView() {
                     chatId={chatId}
                 />
             )}
+
+            <SearchModal
+                open={searchModalOpen}
+                onClose={() => setSearchModalOpen(false)}
+                chatId={chatId}
+                onMessageClick={handleMessageClick}
+            />
         </Container>
     );
 }
