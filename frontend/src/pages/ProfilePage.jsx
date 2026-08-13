@@ -188,9 +188,9 @@ export default function ProfilePage() {
 
     return (
         <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-            <Paper elevation={2} sx={{ p: 4, borderRadius: 3 }}>
+            <Paper elevation={2} sx={{ py: 2, borderRadius: 3 }}>
                 {/* Header */}
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={3} sx={{ borderBottom: 1 }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={3} sx={{ borderBottom: 1, pb: 2, mb: 2 }}>
                     <Typography variant="h4" fontWeight="bold">
                         {isOwnProfile ? 'Profile' : `Profile: ${profile.name}`}
                     </Typography>
@@ -232,44 +232,44 @@ export default function ProfilePage() {
                             )}
                         </Box>
                         {isEditing && profilePhoto && (
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography color="text.secondary">
                                 {profilePhoto.name}
                             </Typography>
                         )}
                         {!isEditing ? (
                             // View Mode
                             <Box>
-                                <Box mb={2}>
-                                    <Typography variant="caption" color="text.secondary">
+                                <Box sx={{ mb: 2 }}>
+                                    <Typography color="primary">
                                         Name
                                     </Typography>
-                                    <Typography variant="h6">{profile.name}</Typography>
+                                    <Typography variant="body1" sx={{ fontWeight: 'bold' }}>{profile.name}</Typography>
                                 </Box>
-                                <Box mb={2}>
-                                    <Typography variant="caption" color="text.secondary">
+                                <Box sx={{ mb: 2 }}>
+                                    <Typography color="primary">
                                         Username
                                     </Typography>
-                                    <Typography variant="body1">@{profile.username}</Typography>
+                                    <Typography variant="body1" sx={{ fontWeight: 'bold' }}>@{profile.username}</Typography>
                                 </Box>
                                 {profile.bio && (
-                                    <Box mb={2}>
-                                        <Typography variant="caption" color="text.secondary">
+                                    <Box sx={{ mb: 2 }}>
+                                        <Typography color="primary">
                                             Bio
                                         </Typography>
-                                        <Typography variant="body1">{profile.bio}</Typography>
+                                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>{profile.bio}</Typography>
                                     </Box>
                                 )}
-                                <Box mb={2}>
-                                    <Typography variant="caption" color="text.secondary">
+                                <Box sx={{ mb: 2 }}>
+                                    <Typography color="primary">
                                         Phone Number
                                     </Typography>
-                                    <Typography variant="body1">{profile.phone_number}</Typography>
+                                    <Typography variant="body1" sx={{ fontWeight: 'bold' }}>{profile.phone_number}</Typography>
                                 </Box>
                                 <Box>
-                                    <Typography variant="caption" color="text.secondary">
+                                    <Typography color="primary">
                                         Group Invites
                                     </Typography>
-                                    <Typography variant="body1">
+                                    <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
                                         {profile.allow_group_invites ? (
                                             <Chip label="Allowed" color="success" size="small" />
                                         ) : (
@@ -328,10 +328,10 @@ export default function ProfilePage() {
 
                     {/* Buttons */}
                     <Grid container spacing={2} sx={{ width: '100%' }}>
-                        <Grid item xs={6} sx={{ width: '100%' }}>
+                        <Grid item xs={6} sx={{ width: '100%', px: 4 }}>
                             {isOwnProfile && !isEditing && (
                                 <Button
-                                    variant="outlined"
+                                    variant="contained"
                                     startIcon={<EditIcon />}
                                     onClick={() => setIsEditing(true)}
                                     fullWidth
