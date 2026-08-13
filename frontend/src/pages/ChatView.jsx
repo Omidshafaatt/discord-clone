@@ -20,6 +20,7 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    LinearProgress,
 } from '@mui/material';
 import {
     Send as SendIcon,
@@ -28,19 +29,18 @@ import {
     Info as InfoIcon,
     Group as GroupIcon,
     MoreVert as MoreVertIcon,
+    Search as SearchIcon,
     Schedule as ScheduleIcon,
-    Search as SearchIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import useChatStore from '../store/useChatStore';
 import { getFullImageUrl } from '../lib/utils';
 import GroupDetailModal from '../components/GroupDetailModal';
 import ChannelDetailModal from '../components/ChannelDetailModal';
-import api from '../api/client'; // 👈 ADD THIS IMPORT
-import MediaUpload from '../components/MediaUpload';
 import MediaDisplay from '../components/MediaDisplay';
 import MessageComposer from '../components/MessageComposer';
 import SearchModal from '../components/SearchModal';
+import api from '../api/client';
 
 export default function ChatView() {
     const { chatId } = useParams();
@@ -70,7 +70,6 @@ export default function ChatView() {
     const channelName = isChannel ? storeChat?.name : null;
     const channelAvatar = isChannel ? storeChat?.profile_photo_url : null;
     const isPublic = isChannel ? storeChat?.is_public : null;
-    const memberCount = isChannel || isGroup ? storeChat?.members_count || 0 : 0;
 
     // ---- Local state for channel details (bypass store merge) ----
     const [channelDetails, setChannelDetails] = useState(null);
@@ -96,30 +95,15 @@ export default function ChatView() {
     const wsRef = useRef(null);
     const messagesEndRef = useRef(null);
     const fetchedChannelRef = useRef(false);
-    const messageRefs = useRef(new Map());
-
-    // Clear refs when chat changes
-    useEffect(() => {
-        messageRefs.current.clear();
-    }, [chatId]);
-
-    // ---- Fetch channel details if needed ----
-    useEffect(() => {
-        if (isChannel && chatId && !channelDetails && !fetchedChannelRef.current) {
-            fetchedChannelRef.current = true;
-            fetchChannelDetails(chatId)
-                .then((data) => {
-                    console.log('✅ Channel details fetched (local):', data);
-                    setChannelDetails(data);
-                })
-                .catch((err) => {
-                    console.error('❌ Failed to fetch channel details:', err);
-                });
-        }
-    }, [isChannel, chatId, channelDetails, fetchChannelDetails]);
+    const reconnectTimerRef = useRef(null);
 
     // ---- Use local channelDetails if available, fallback to storeChat ----
     const effectiveChat = isChannel ? (channelDetails || storeChat) : storeChat;
+
+    // ---- Member count ----
+    const memberCount = (isChannel || isGroup)
+        ? (effectiveChat?.members?.length || effectiveChat?.members_count || 0)
+        : 0;
 
     // ---- Permissions (based on effectiveChat) ----
     const currentUserRole = useMemo(() => {
@@ -127,7 +111,6 @@ export default function ChatView() {
         const currentMember = effectiveChat.members.find(
             (m) => Number(m.user.id) === Number(userId)
         );
-        console.log('👤 Found member:', currentMember);
         return currentMember?.role || null;
     }, [isChannel, effectiveChat, userId]);
 
@@ -135,6 +118,7 @@ export default function ChatView() {
     const canSendMessages = permissions.includes('send_messages');
     const canUploadMedia = permissions.includes('upload_media');
     const canManageChannel = permissions.includes('manage_channel');
+    const canManageMembers = permissions.includes('manage_members');
     const canEditMessages = permissions.includes('edit_messages');
     const canDeleteMessages = permissions.includes('delete_messages');
 
@@ -143,75 +127,29 @@ export default function ChatView() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, []);
 
-    const scrollToMessage = (messageId) => {
-        const element = messageRefs.current.get(messageId);
-        if (element) {
-            // Scroll to the element
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-            // Highlight the message temporarily
-            element.style.transition = 'background-color 0.5s';
-            element.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
-            setTimeout(() => {
-                element.style.backgroundColor = '';
-            }, 2000);
-        }
-    };
-
-    const handleMessageClick = (msg) => {
-        scrollToMessage(msg.id);
-    };
-
-    // ---- Load messages ----
-    const loadMessages = useCallback(async () => {
-        setLoading(true);
-        let existingChat = getChat(chatId);
-        if (!existingChat) {
-            await fetchChats();
-            existingChat = getChat(chatId);
-        }
-        if (existingChat?.chat_type === 'channel' && !channelDetails) {
-            console.log('📡 loadMessages: fetching channel details...');
-            try {
-                const data = await fetchChannelDetails(chatId);
-                setChannelDetails(data);
-            } catch (e) {
-                // ignore
-            }
-        }
-        await fetchMessages(chatId);
-        setLoading(false);
-    }, [chatId, getChat, fetchChats, fetchMessages, fetchChannelDetails, channelDetails]);
-
-    // ---- Load on mount ----
-    useEffect(() => {
-        loadMessages();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [chatId]);
-
-    // ---- WebSocket ----
-    useEffect(() => {
+    // ---- WebSocket connection with reconnection ----
+    const connectWebSocket = useCallback(() => {
         const token = localStorage.getItem('access_token');
         if (!token) return;
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
 
         const ws = new WebSocket(`ws://localhost:8000/ws?token=${token}`);
-        let isMounted = true;
 
         ws.onopen = () => {
-            if (!isMounted) {
-                ws.close();
-                return;
-            }
             console.log('WebSocket connected');
+            // Re‑fetch messages to sync any missed updates (e.g., scheduled messages)
+            fetchMessages(chatId);
+            if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+                reconnectTimerRef.current = null;
+            }
         };
 
         ws.onmessage = (event) => {
-            console.log('📨 WebSocket raw:', event.data);
+            console.log('📨 WebSocket RAW:', event.data);   // 👈 log raw data
             try {
                 const data = JSON.parse(event.data);
-                console.log('📦 Parsed data:', data);
-
-                // Only process messages for this chat
+                console.log('📦 Parsed data:', data);          // 👈 log parsed
                 if (data.chat_id !== parseInt(chatId, 10)) return;
 
                 switch (data.event) {
@@ -230,29 +168,37 @@ export default function ChatView() {
                             is_sent: data.is_sent !== undefined ? data.is_sent : true,
                         };
 
-                        // Check if message already exists (e.g., scheduled)
+                        console.log('🔍 New message received. Checking for existing message with id:', msg.id);
+
                         const existingMessages = messages[chatId] || [];
                         const existing = existingMessages.find((m) => m.id === msg.id);
+                        console.log('🔍 Existing message found?', existing);
+
                         if (existing) {
-                            // Update the existing message with the new data (including new timestamp)
+                            console.log('🔄 Updating existing message with:', {
+                                is_sent: true,
+                                created_at: msg.created_at,
+                                scheduled_at: null,
+                            });
                             updateMessage(chatId, msg.id, {
                                 is_sent: true,
-                                created_at: msg.created_at,   // 👈 update to actual sent time
-                                // optionally update content if changed (shouldn't)
+                                created_at: msg.created_at,
+                                scheduled_at: null,
                             });
                         } else {
+                            console.log('➕ Adding new message');
                             addMessage(msg);
                         }
                         break;
                     }
                     case 'message_edited':
-                        updateMessage(parseInt(chatId), data.message_id, {
+                        updateMessage(parseInt(chatId, 10), data.message_id, {
                             content: data.new_content,
                             updated_at: data.updated_at,
                         });
                         break;
                     case 'message_deleted':
-                        updateMessage(parseInt(chatId), data.message_id, {
+                        updateMessage(parseInt(chatId, 10), data.message_id, {
                             is_deleted: true,
                             content: 'This message was deleted',
                         });
@@ -265,18 +211,65 @@ export default function ChatView() {
             }
         };
 
-        ws.onclose = () => console.log('WebSocket disconnected');
-        ws.onerror = (error) => console.error('WebSocket error', error);
-
-        wsRef.current = ws;
-
-        return () => {
-            isMounted = false;
-            if (wsRef.current) {
-                wsRef.current.close();
+        ws.onclose = (event) => {
+            console.log('WebSocket disconnected');
+            if (!event.wasClean && !reconnectTimerRef.current) {
+                reconnectTimerRef.current = setTimeout(() => {
+                    connectWebSocket();
+                }, 3000);
             }
         };
-    }, [chatId, addMessage, updateMessage]);
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error', error);
+            ws.close();
+        };
+
+        wsRef.current = ws;
+    }, [chatId, addMessage, updateMessage, messages, fetchMessages]);
+
+    // ---- Cleanup on unmount ----
+    useEffect(() => {
+        return () => {
+            if (wsRef.current) wsRef.current.close();
+            if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+        };
+    }, []);
+
+    // ---- Fetch channel details if needed ----
+    useEffect(() => {
+        if (isChannel && chatId && !channelDetails && !fetchedChannelRef.current) {
+            fetchedChannelRef.current = true;
+            fetchChannelDetails(chatId)
+                .then((data) => setChannelDetails(data))
+                .catch(() => { });
+        }
+    }, [isChannel, chatId, channelDetails, fetchChannelDetails]);
+
+    // ---- Load messages ----
+    const loadMessages = useCallback(async () => {
+        setLoading(true);
+        let existingChat = getChat(chatId);
+        if (!existingChat) {
+            await fetchChats();
+            existingChat = getChat(chatId);
+        }
+        if (existingChat?.chat_type === 'channel' && !channelDetails) {
+            try {
+                const data = await fetchChannelDetails(chatId);
+                setChannelDetails(data);
+            } catch (e) { }
+        }
+        await fetchMessages(chatId);
+        setLoading(false);
+    }, [chatId, getChat, fetchChats, fetchMessages, fetchChannelDetails, channelDetails]);
+
+    // ---- Load on mount ----
+    useEffect(() => {
+        connectWebSocket();
+        loadMessages();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chatId]);
 
     // ---- Scroll on new messages ----
     useEffect(() => {
@@ -329,21 +322,15 @@ export default function ChatView() {
         if (!editContent.trim() || !editingMessageId) return;
         setEditLoading(true);
         setError('');
-        // Save current state for rollback
-        const oldMessages = messages[chatId] || [];
         try {
-            // Optimistic update
             updateMessage(chatId, editingMessageId, { content: editContent });
             setEditDialogOpen(false);
             setEditingMessageId(null);
-            // API call
             await api.patch(`/chat/${chatId}/messages/${editingMessageId}`, {
                 content: editContent,
             });
         } catch (err) {
             setError('Failed to edit message. Reverting...');
-            // Rollback: replace messages with old state
-            // Since we don't have a backup, we re‑fetch messages from server
             await fetchMessages(chatId);
         } finally {
             setEditLoading(false);
@@ -357,7 +344,6 @@ export default function ChatView() {
         setError('');
         const msgId = selectedMessage.id;
         try {
-            // Optimistic delete (soft)
             updateMessage(chatId, msgId, {
                 is_deleted: true,
                 content: 'This message was deleted',
@@ -366,16 +352,38 @@ export default function ChatView() {
             await api.delete(`/chat/${chatId}/messages/${msgId}`);
         } catch (err) {
             setError('Failed to delete message. Reverting...');
-            // Re‑fetch messages to restore
             await fetchMessages(chatId);
         }
+    };
+
+    // ---- Scroll to message (search) ----
+    const messageRefs = useRef(new Map());
+
+    useEffect(() => {
+        messageRefs.current.clear();
+    }, [chatId]);
+
+    const scrollToMessage = (messageId) => {
+        const element = messageRefs.current.get(messageId);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.style.transition = 'background-color 0.5s';
+            element.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
+            setTimeout(() => {
+                element.style.backgroundColor = '';
+            }, 2000);
+        }
+    };
+
+    const handleMessageClick = (msg) => {
+        scrollToMessage(msg.id);
     };
 
     // ---- Render message ----
     const renderMessage = (msg, index) => {
         const isOwn = Number(msg.sender_id) === Number(userId);
         const isDeleted = msg.is_deleted;
-        const isScheduled = msg.scheduled_at && !msg.is_sent;
+        const isMedia = msg.message_type === 'media';
 
         // Determine sender name
         let senderDisplayName = isOwn
@@ -391,9 +399,11 @@ export default function ChatView() {
             : null;
 
         // ---- Permission to show menu ----
-        let showMenu = false;
-        if (isOwn) showMenu = true;
-        else if (isChannel && (canEditMessages || canDeleteMessages)) showMenu = true;
+        const canEdit = isOwn || (isChannel && canEditMessages);
+        const canDelete = isOwn || (isChannel && canDeleteMessages);
+        const showMenu = (canEdit || canDelete) && !isDeleted;
+
+        const isScheduled = msg.scheduled_at && !msg.is_sent;
 
         return (
             <Box
@@ -428,30 +438,54 @@ export default function ChatView() {
                                 {senderDisplayName}
                             </Typography>
                         )}
-                        {msg.message_type === 'media' && msg.media_url && (
-                            <MediaDisplay
-                                mediaUrl={getFullImageUrl(msg.media_url)}
-                                content={msg.content}
-                            />
+
+                        {/* ---- Media content ---- */}
+                        {isMedia && (
+                            <>
+                                {msg.uploading ? (
+                                    <Box sx={{ width: '100%', mt: 1 }}>
+                                        <LinearProgress variant="determinate" value={msg.progress || 0} />
+                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                                            Uploading... {msg.progress || 0}%
+                                        </Typography>
+                                    </Box>
+                                ) : msg.media_url ? (
+                                    <MediaDisplay
+                                        mediaUrl={getFullImageUrl(msg.media_url)}
+                                        content={msg.content}
+                                    />
+                                ) : null}
+                            </>
                         )}
-                        <Typography variant="body1">
-                            {isDeleted ? (
-                                <em style={{ opacity: 0.6 }}>This message was deleted</em>
-                            ) : (
-                                msg.content
-                            )}
-                        </Typography>
+
+                        {/* ---- Text content (skip for media) ---- */}
+                        {!isMedia && (
+                            <Typography variant="body1">
+                                {isDeleted ? (
+                                    <em style={{ opacity: 0.6 }}>This message was deleted</em>
+                                ) : (
+                                    msg.content
+                                )}
+                            </Typography>
+                        )}
+
+                        {/* ---- Scheduled indicator ---- */}
                         {isScheduled && (
                             <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
                                 <ScheduleIcon sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />
                                 Scheduled for {new Date(msg.scheduled_at).toLocaleString()}
                             </Typography>
                         )}
+
+                        {/* ---- Timestamp ---- */}
                         <Typography variant="caption" display="block" sx={{ opacity: 0.6, textAlign: 'right' }}>
-                            {new Date(msg.created_at).toLocaleTimeString()}
+                            {isScheduled
+                                ? `Scheduled: ${new Date(msg.scheduled_at).toLocaleString()}`
+                                : new Date(msg.created_at).toLocaleTimeString()}
                         </Typography>
                     </Paper>
-                    {showMenu && !isDeleted && (
+
+                    {showMenu && (
                         <IconButton
                             size="small"
                             onClick={(e) => handleMenuOpen(e, msg)}
@@ -507,7 +541,7 @@ export default function ChatView() {
         headerAvatarClick = goToProfile;
     }
 
-    const showInfoButton = isGroup || (isChannel && canManageChannel);
+    const showInfoButton = isGroup || (isChannel && (canManageChannel || canManageMembers));
 
     return (
         <Container maxWidth="md" sx={{ mt: 2, mb: 2, height: 'calc(100vh - 100px)' }}>
@@ -541,6 +575,10 @@ export default function ChatView() {
                     )}
                 </Box>
 
+                <IconButton onClick={() => setSearchModalOpen(true)} sx={{ ml: 1 }}>
+                    <SearchIcon />
+                </IconButton>
+
                 {showInfoButton && (
                     <IconButton
                         onClick={() => {
@@ -552,9 +590,6 @@ export default function ChatView() {
                         <InfoIcon />
                     </IconButton>
                 )}
-                <IconButton onClick={() => setSearchModalOpen(true)} sx={{ ml: 1 }}>
-                    <SearchIcon />
-                </IconButton>
             </Paper>
 
             {/* Messages */}
@@ -577,22 +612,41 @@ export default function ChatView() {
                 <div ref={messagesEndRef} />
             </Paper>
 
-            {/* Input area */}
-            {isChannel && !canSendMessages ? (
-                <Alert severity="warning" sx={{ mt: 2 }}>
-                    You do not have permission to send messages in this channel.
-                </Alert>
+            {/* Composer area */}
+            {isChannel ? (
+                !canSendMessages && !canUploadMedia ? (
+                    <Alert severity="warning" sx={{ mt: 2 }}>
+                        You do not have permission to send messages or upload media in this channel.
+                    </Alert>
+                ) : (
+                    <MessageComposer
+                        chatId={chatId}
+                        userId={userId}
+                        onSend={(data) => {
+                            if (data.message_type === 'media' && data.media_url) {
+                                addMessage(data);
+                            } else {
+                                sendMessage(chatId, data);
+                            }
+                        }}
+                        onTemporaryAdd={addMessage}
+                        onTemporaryUpdate={updateMessage}
+                        onTemporaryRemove={removeTemporaryMessage}
+                        onError={(err) => setError(err)}
+                        disabled={sending}
+                        canUploadMedia={canUploadMedia}
+                        canSendMessages={canSendMessages}
+                    />
+                )
             ) : (
                 <MessageComposer
                     chatId={chatId}
-                    userId={userId}   // 👈 add this
+                    userId={userId}
                     onSend={(data) => {
                         if (data.message_type === 'media' && data.media_url) {
-                            // Media message – already a full message from server
                             addMessage(data);
                         } else {
-                            // Text message – send with scheduled_at if present
-                            sendMessage(chatId, data);   // data = { content, scheduled_at? }
+                            sendMessage(chatId, data);
                         }
                     }}
                     onTemporaryAdd={addMessage}
@@ -600,7 +654,8 @@ export default function ChatView() {
                     onTemporaryRemove={removeTemporaryMessage}
                     onError={(err) => setError(err)}
                     disabled={sending}
-                    canUploadMedia={!isChannel || canUploadMedia}
+                    canUploadMedia={true}
+                    canSendMessages={true}
                 />
             )}
 
@@ -610,8 +665,24 @@ export default function ChatView() {
                 open={Boolean(anchorEl)}
                 onClose={handleMenuClose}
             >
-                <MenuItem onClick={handleEditMessage}>Edit</MenuItem>
-                <MenuItem onClick={handleDeleteMessage}>Delete</MenuItem>
+                <MenuItem
+                    onClick={handleEditMessage}
+                    disabled={!(
+                        (selectedMessage && Number(selectedMessage.sender_id) === Number(userId)) ||
+                        (isChannel && canEditMessages)
+                    )}
+                >
+                    Edit
+                </MenuItem>
+                <MenuItem
+                    onClick={handleDeleteMessage}
+                    disabled={!(
+                        (selectedMessage && Number(selectedMessage.sender_id) === Number(userId)) ||
+                        (isChannel && canDeleteMessages)
+                    )}
+                >
+                    Delete
+                </MenuItem>
             </Menu>
 
             {/* Edit Dialog */}
@@ -629,9 +700,7 @@ export default function ChatView() {
                     />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setEditDialogOpen(false)} disabled={editLoading}>
-                        Cancel
-                    </Button>
+                    <Button onClick={() => setEditDialogOpen(false)} disabled={editLoading}>Cancel</Button>
                     <Button onClick={handleSaveEdit} variant="contained" disabled={editLoading}>
                         {editLoading ? <CircularProgress size={24} /> : 'Save'}
                     </Button>

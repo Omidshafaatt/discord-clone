@@ -53,7 +53,9 @@ async def check_and_send_scheduled_messages():
                 await manager.broadcast_to_chat(msg.chat_id, member_ids, message_json)
                 
                 # نیازی به db.add(msg) نیست؛ SQLAlchemy تغییر وضعیت را به صورت خودکار ردیابی می‌کند
-                msg.is_sent = True 
+                msg.is_sent = True
+                msg.created_at = actual_sent_time   # 👈 set to actual send time
+                msg.scheduled_at = None  
             
             if pending_messages:
                 await db.commit()
