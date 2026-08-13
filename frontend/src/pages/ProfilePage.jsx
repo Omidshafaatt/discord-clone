@@ -211,14 +211,17 @@ export default function ProfilePage() {
                                 sx={{ width: 150, height: 150, mb: 2 }}
                             />
                             {isEditing && (
+                                <div style={{ position: 'relative' }}>
                                 <IconButton
                                     component="label"
                                     sx={{
-                                        position: 'relative',
-                                        bottom: 50,
-                                        right: '-30%',
+                                        position: 'absolute',
+                                        bottom: '10px',
+                                        left: '-50px',
                                         backgroundColor: 'background.paper',
                                         boxShadow: 1,
+                                        width: 50,
+                                        height: 50
                                     }}
                                 >
                                     <PhotoCameraIcon />
@@ -228,7 +231,7 @@ export default function ProfilePage() {
                                         onChange={handleFileChange}
                                         hidden
                                     />
-                                </IconButton>
+                                </IconButton></div>
                             )}
                         </Box>
                         {isEditing && profilePhoto && (
@@ -282,13 +285,13 @@ export default function ProfilePage() {
                             // Edit Mode
                             <Box component="form">
                                 <TextField
-                                    fullWidth
                                     label="Full Name"
                                     name="name"
                                     value={editData.name}
                                     onChange={handleEditChange}
                                     margin="normal"
                                     required
+                                    sx={{ mx: 2, width: '80%' }}
                                 />
                                 <TextField
                                     fullWidth
@@ -296,6 +299,7 @@ export default function ProfilePage() {
                                     name="username"
                                     value={editData.username}
                                     onChange={handleEditChange}
+                                    sx={{ mx: 2, width: '80%' }}
                                     margin="normal"
                                     required
                                     helperText="Unique username for public profile"
@@ -306,6 +310,7 @@ export default function ProfilePage() {
                                     name="bio"
                                     value={editData.bio}
                                     onChange={handleEditChange}
+                                    sx={{ mx: 2, width: '80%' }}
                                     margin="normal"
                                     multiline
                                     rows={3}
@@ -327,7 +332,7 @@ export default function ProfilePage() {
                     </Grid>
 
                     {/* Buttons */}
-                    <Grid container spacing={2} sx={{ width: '100%' }}>
+                    <Grid container spacing={2} sx={{ mx: 'auto', width: '80%', mb: 2 }}>
                         <Grid item xs={6} sx={{ width: '100%', px: 4 }}>
                             {isOwnProfile && !isEditing && (
                                 <Button
