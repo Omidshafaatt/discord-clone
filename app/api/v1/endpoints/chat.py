@@ -217,21 +217,20 @@ async def send_text_message(
     await db.commit()
     await db.refresh(new_message)
 
-    if not is_scheduled:
-        members = await db.execute(select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id))
-        member_ids = [row[0] for row in members.all()]
-        message_json = json.dumps({
-            "event": "new_message",
-            "message_id": new_message.id,                          # 👈 added
-            "chat_id": chat_id,
-            "sender_id": current_user.id,
-            "sender_name": current_user.name,
-            "content": new_message.content,
-            "created_at": new_message.created_at.isoformat(),
-            "scheduled_at": new_message.scheduled_at.isoformat() if new_message.scheduled_at else None,   # 👈 added
-            "is_sent": new_message.is_sent,                        # 👈 added
-        })
-        await manager.broadcast_to_chat(chat_id, member_ids, message_json)
+    members = await db.execute(select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id))
+    member_ids = [row[0] for row in members.all()]
+    message_json = json.dumps({
+        "event": "new_message",
+        "message_id": new_message.id,
+        "chat_id": chat_id,
+        "sender_id": current_user.id,
+        "sender_name": current_user.name,
+        "content": new_message.content,
+        "created_at": new_message.created_at.isoformat(),
+        "scheduled_at": new_message.scheduled_at.isoformat() if new_message.scheduled_at else None,
+        "is_sent": new_message.is_sent,
+    })
+    await manager.broadcast_to_chat(chat_id, member_ids, message_json)
     
     return MessageOut(
         id=new_message.id,

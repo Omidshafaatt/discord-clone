@@ -126,6 +126,17 @@ export default function ChatView() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, []);
 
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('👁️ Tab became visible, re‑fetching messages...');
+                fetchMessages(chatId);
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [chatId, fetchMessages]);
+
     // ---- WebSocket connection with reconnection ----
     const connectWebSocket = useCallback(() => {
         const token = localStorage.getItem('access_token');
@@ -145,14 +156,21 @@ export default function ChatView() {
         };
 
         ws.onmessage = (event) => {
-            console.log('📨 WebSocket RAW:', event.data);   // 👈 log raw data
             try {
                 const data = JSON.parse(event.data);
-                console.log('📦 Parsed data:', data);          // 👈 log parsed
+                console.log('📦 Parsed data:', data);
                 if (data.chat_id !== parseInt(chatId, 10)) return;
 
                 switch (data.event) {
                     case 'new_message': {
+                        // ---- SCHEDULED DELIVERY: re‑fetch to ensure consistency ----
+                        if (data.is_scheduled_delivery && data.is_sent) {
+                            console.log('📡 Scheduled message delivered, re‑fetching messages...');
+                            fetchMessages(chatId);
+                            break;
+                        }
+
+                        // ---- Normal message handling ----
                         const msg = {
                             id: data.message_id,
                             chat_id: data.chat_id,
@@ -174,11 +192,7 @@ export default function ChatView() {
                         console.log('🔍 Existing message found?', existing);
 
                         if (existing) {
-                            console.log('🔄 Updating existing message with:', {
-                                is_sent: true,
-                                created_at: msg.created_at,
-                                scheduled_at: null,
-                            });
+                            console.log('🔄 Updating existing message...');
                             updateMessage(chatId, msg.id, {
                                 is_sent: true,
                                 created_at: msg.created_at,
