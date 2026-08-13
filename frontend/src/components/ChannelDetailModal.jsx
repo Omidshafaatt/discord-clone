@@ -391,46 +391,53 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
           Members
         </Typography>
         <List dense>
-          {channel.members?.map((member) => (
-            <ListItem key={member.user.id}>
-              <ListItemAvatar>
-                <Avatar src={getFullImageUrl(member.user.profile_photo_url)}>
-                  {member.user.name?.[0]?.toUpperCase() || 'U'}
-                </Avatar>
-              </ListItemAvatar>
-              <ListItemText
-                primary={member.user.name}
-                secondary={`@${member.user.username} • ${member.role?.name || 'No role'}`}
-              />
-              {canManageMembers && member.user.id !== userId && (
-                <>
-                  <FormControl size="small" sx={{ minWidth: 120, mr: 1 }}>
-                    <InputLabel id={`role-label-${member.user.id}`}>Role</InputLabel>
-                    <Select
-                      labelId={`role-label-${member.user.id}`}
-                      value={member.role?.name || ''}
-                      onChange={(e) => handleRoleChange(member.user.id, e.target.value)}
-                      disabled={actionLoading}
-                    >
-                      {availableRoles.map((role) => (
-                        <MenuItem key={role.id} value={role.name}>
-                          {role.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={() => handleRemoveMember(member.user.id)}
-                    disabled={actionLoading}
-                  >
-                    <CloseIcon />
-                  </IconButton>
-                </>
-              )}
-            </ListItem>
-          ))}
+          {channel.members?.map((member) => {
+            const isCreator = member.user.id === channel.created_by_id;
+            const canManageThisMember = canManageMembers && !isCreator;
+
+            return (
+              <ListItem key={member.user.id}>
+                <ListItemAvatar>
+                  <Avatar src={getFullImageUrl(member.user.profile_photo_url)}>
+                    {member.user.name?.[0]?.toUpperCase() || 'U'}
+                  </Avatar>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={member.user.name}
+                  secondary={`@${member.user.username} • ${member.role?.name || 'No role'}`}
+                />
+                {canManageThisMember && member.user.id !== userId && (
+                  <>
+                    <FormControl size="small" sx={{ minWidth: 120, mr: 1 }}>
+                      <InputLabel id={`role-label-${member.user.id}`}>Role</InputLabel>
+                      <Select
+                        labelId={`role-label-${member.user.id}`}
+                        value={member.role?.name || ''}
+                        onChange={(e) => handleRoleChange(member.user.id, e.target.value)}
+                        disabled={actionLoading || isCreator}
+                      >
+                        {availableRoles.map((role) => (
+                          <MenuItem key={role.id} value={role.name}>
+                            {role.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    {!isCreator && (
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleRemoveMember(member.user.id)}
+                        disabled={actionLoading}
+                      >
+                        <CloseIcon />
+                      </IconButton>
+                    )}
+                  </>
+                )}
+              </ListItem>
+            )
+          })}
         </List>
 
         {/* ---- Add members (admin only) ---- */}

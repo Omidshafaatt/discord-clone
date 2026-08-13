@@ -33,6 +33,7 @@ export default function MessageComposer({
   onError,
   disabled = false,
   canUploadMedia = true,
+  canSendMessages = true,   // 👈 new prop
 }) {
   const [message, setMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
@@ -44,8 +45,17 @@ export default function MessageComposer({
   const fileInputRef = useRef(null);
   const tempIdRef = useRef(null);
 
+  // ---- Determine if user can send text (without file) ----
+  const canSendText = canSendMessages;
+
+  // ---- Determine if user can send at all (text or file) ----
+  const canSend = canSendText || selectedFile;
+
   const handleSend = async () => {
-    // ---- Text only ----
+    // If no file and text is not allowed, block
+    if (!selectedFile && !canSendText) return;
+
+    // ---- Text only (no file) ----
     if (!selectedFile) {
       if (!message.trim()) return;
       const payload = { content: message.trim() };
@@ -135,11 +145,12 @@ export default function MessageComposer({
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (canSend) handleSend();
     }
   };
 
   const isSending = uploading || disabled;
+  const isTextDisabled = !canSendText || isSending;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
@@ -210,11 +221,17 @@ export default function MessageComposer({
         <TextField
           fullWidth
           variant="outlined"
-          placeholder={selectedFile ? 'Add a caption...' : 'Type a message...'}
+          placeholder={
+            isTextDisabled
+              ? 'You can only upload media'
+              : selectedFile
+                ? 'Add a caption...'
+                : 'Type a message...'
+          }
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={isSending}
+          disabled={isTextDisabled}
           size="small"
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
         />
@@ -222,7 +239,7 @@ export default function MessageComposer({
         <IconButton
           color="primary"
           onClick={handleSend}
-          disabled={(!message.trim() && !selectedFile) || isSending}
+          disabled={(!message.trim() && !selectedFile) || isSending || !canSend}
           sx={{ ml: 1 }}
         >
           {uploading ? <CircularProgress size={24} /> : <SendIcon />}

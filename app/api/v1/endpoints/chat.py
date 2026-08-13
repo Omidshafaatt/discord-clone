@@ -470,27 +470,39 @@ async def delete_message(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    # 1. پیدا کردن پیام
     message = await db.get(Message, message_id)
     if not message:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
     if message.chat_id != chat_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Message does not belong to this chat")
 
-    has_permission = await can_delete_message(current_user, message, db)
-    if not has_permission:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have permission to delete this message")
-
+    # 2. دریافت نوع چت
     chat = await db.get(Chat, chat_id)
+    
+    # 3. بررسی دسترسی بر اساس نوع چت
     if chat.chat_type == ChatType.CHANNEL:
+        # در کانال: اگر کاربر فرستنده نیست، نیاز به permission دارد
         if message.sender_id != current_user.id:
             await check_permission(db, current_user.id, chat_id, "delete_messages")
+        # اگر خودش فرستنده است، مجاز است (بدون permission خاص)
+    else:
+        # در DM و گروه: فقط خود فرستنده می‌تواند حذف کند
+        if message.sender_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to delete this message"
+            )
 
+    # 4. حذف نرم
     message.is_deleted = True
     db.add(message)
     await db.commit()
 
+    # 5. پخش رویداد حذف به صورت زنده (WebSocket)
     members = await db.execute(select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id))
     member_ids = [row[0] for row in members.all()]
+    
     delete_event = json.dumps({
         "event": "message_deleted",
         "chat_id": chat_id,
@@ -1082,6 +1094,13 @@ async def remove_channel_member(
     db: AsyncSession = Depends(get_db)
 ):
     await check_permission(db, current_user.id, channel_id, "manage_members")
+    chat = await db.get(Chat, channel_id)
+    if not chat or chat.chat_type != ChatType.CHANNEL:
+        raise HTTPException(404, "Channel not found")
+    
+    # 👇 Prevent removing the creator
+    if chat.created_by_id == user_id:
+        raise HTTPException(403, "Cannot remove the channel creator")
     participant = await db.execute(
         select(ChatParticipant).where(
             ChatParticipant.chat_id == channel_id,
@@ -1103,6 +1122,13 @@ async def update_member_role(
     db: AsyncSession = Depends(get_db)
 ):
     await check_permission(db, current_user.id, channel_id, "manage_members")
+    chat = await db.get(Chat, channel_id)
+    if not chat or chat.chat_type != ChatType.CHANNEL:
+        raise HTTPException(404, "Channel not found")
+    
+    # 👇 Prevent changing the creator's role
+    if chat.created_by_id == user_id:
+        raise HTTPException(403, "Cannot change the role of the channel creator")
     participant = await db.execute(
         select(ChatParticipant).where(
             ChatParticipant.chat_id == channel_id,
