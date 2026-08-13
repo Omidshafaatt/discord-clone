@@ -229,6 +229,7 @@ async def send_text_message(
         "created_at": new_message.created_at.isoformat(),
         "scheduled_at": new_message.scheduled_at.isoformat() if new_message.scheduled_at else None,
         "is_sent": new_message.is_sent,
+        "sender_username": current_user.username,
     })
     await manager.broadcast_to_chat(chat_id, member_ids, message_json)
     
@@ -243,7 +244,8 @@ async def send_text_message(
         is_deleted=new_message.is_deleted,
         media_url=None,
         scheduled_at=new_message.scheduled_at,
-        is_sent=new_message.is_sent
+        is_sent=new_message.is_sent,
+        sender_username = current_user.username
     )
 
 @router.post("/{chat_id}/messages/media", response_model=MessageOut)
@@ -331,6 +333,7 @@ async def send_media_message(
             "created_at": new_message.created_at.isoformat(),
             "scheduled_at": new_message.scheduled_at.isoformat() if new_message.scheduled_at else None,   # 👈 added
             "is_sent": new_message.is_sent,                                                              # 👈 added
+            "sender_username": current_user.username,
         })
         print(f"📡 Broadcasting media to chat {chat_id}, members: {member_ids}")
         await manager.broadcast_to_chat(chat_id, member_ids, message_json)
@@ -346,7 +349,8 @@ async def send_media_message(
         is_deleted=new_message.is_deleted,
         media_url=file_path,
         scheduled_at=new_message.scheduled_at,
-        is_sent=new_message.is_sent
+        is_sent=new_message.is_sent,
+        sender_username = current_user.username
     )
 
 @router.get("/{chat_id}/messages", response_model=List[MessageOut])
@@ -397,7 +401,8 @@ async def get_chat_history(
             is_deleted=message.is_deleted,
             media_url=message.media.file_path if message.media else None,
             scheduled_at=message.scheduled_at,
-            is_sent=message.is_sent
+            is_sent=message.is_sent,
+            sender_username = message.sender.username if message.sender else None
         )
         msgOuts.append(msgOut)
 
@@ -564,7 +569,8 @@ async def search_messages_in_chat(
         is_deleted=msg.is_deleted,
         media_url=msg.media.file_path if msg.media else None,
         scheduled_at=msg.scheduled_at,
-        is_sent=msg.is_sent
+        is_sent=msg.is_sent,
+        sender_username = msg.sender.username if msg.sender else None
     ) for msg in messages]
 
     return messages_out

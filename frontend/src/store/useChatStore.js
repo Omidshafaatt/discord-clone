@@ -34,6 +34,18 @@ const useChatStore = create((set, get) => ({
     }
   },
 
+  createChat: async (username) => {
+    try {
+      const response = await api.post('/chat/', { target_username: username });
+      // Refresh the chat list to include the new DM
+      await get().fetchChats();
+      return response.data;
+    } catch (err) {
+      console.error('Create chat error:', err);
+      throw err;
+    }
+  },
+
   // Send a message – no optimistic update; WebSocket will add it
   sendMessage: async (chatId, messageData) => {
     try {

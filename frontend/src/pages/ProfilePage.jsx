@@ -262,12 +262,12 @@ export default function ProfilePage() {
                                         <Typography variant="body1" sx={{ fontWeight: 'bold' }}>{profile.bio}</Typography>
                                     </Box>
                                 )}
-                                <Box sx={{ mb: 2 }}>
+                                {profile.phone_number && <Box sx={{ mb: 2 }}>
                                     <Typography color="primary">
                                         Phone Number
                                     </Typography>
                                     <Typography variant="body1" sx={{ fontWeight: 'bold' }}>{profile.phone_number}</Typography>
-                                </Box>
+                                </Box>}
                                 <Box>
                                     <Typography color="primary">
                                         Group Invites

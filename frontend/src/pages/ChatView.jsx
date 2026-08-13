@@ -430,7 +430,17 @@ export default function ChatView() {
                 }}
                 sx={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', mb: 2 }}
             >
-                {!isOwn && (
+                {!isOwn && msg.sender_username && (
+                    <IconButton
+                        onClick={() => navigate(`/profile/${msg.sender_username}`)}
+                        sx={{ p: 0, mr: 1 }}
+                    >
+                        <Avatar src={avatarSrc} sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
+                            {avatarLetter}
+                        </Avatar>
+                    </IconButton>
+                )}
+                {!isOwn && !msg.sender_username && (
                     <Avatar src={avatarSrc} sx={{ width: 32, height: 32, mr: 1, bgcolor: 'secondary.main' }}>
                         {avatarLetter}
                     </Avatar>

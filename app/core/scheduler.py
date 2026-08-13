@@ -48,6 +48,7 @@ async def check_and_send_scheduled_messages():
                     "created_at": actual_sent_time.isoformat(),
                     "is_scheduled_delivery": True,
                     "is_sent": True, 
+                    "sender_username": msg.sender.username,
                 })
                 
                 await manager.broadcast_to_chat(msg.chat_id, member_ids, message_json)

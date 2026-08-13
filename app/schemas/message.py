@@ -20,6 +20,7 @@ class MessageOut(BaseModel):
     media_url: Optional[str] = None
     scheduled_at: Optional[datetime] = None
     is_sent: bool
+    sender_username: Optional[str] = None
 
     class Config:
         from_attributes = True

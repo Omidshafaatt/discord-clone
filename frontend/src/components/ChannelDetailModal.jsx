@@ -38,6 +38,7 @@ import {
 import useChatStore from '../store/useChatStore';
 import { getFullImageUrl } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const AVAILABLE_PERMISSIONS = [
   'send_messages',
@@ -89,6 +90,8 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
 
   // Ref to prevent multiple fetches
   const fetchedRef = useRef(null);
+
+  const navigate = useNavigate();
 
   // ---- Fetch channel details & roles when modal opens ----
   useEffect(() => {
@@ -398,9 +401,13 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
             return (
               <ListItem key={member.user.id}>
                 <ListItemAvatar>
-                  <Avatar src={getFullImageUrl(member.user.profile_photo_url)}>
-                    {member.user.name?.[0]?.toUpperCase() || 'U'}
-                  </Avatar>
+                  <IconButton
+                    onClick={() => navigate(`/profile/${member.user.username}`)}
+                    sx={{ p: 0, mr: 1 }}
+                  >
+                    <Avatar src={getFullImageUrl(member.user.profile_photo_url)}>
+                      {member.user.name?.[0]?.toUpperCase() || 'U'}
+                    </Avatar></IconButton>
                 </ListItemAvatar>
                 <ListItemText
                   primary={member.user.name}

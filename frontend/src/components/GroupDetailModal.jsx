@@ -21,6 +21,7 @@ import { Close as CloseIcon, Add as AddIcon } from '@mui/icons-material';
 import useChatStore from '../store/useChatStore';
 import { getFullImageUrl } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function GroupDetailModal({ open, onClose, chatId }) {
     const { user } = useAuth();
@@ -32,6 +33,8 @@ export default function GroupDetailModal({ open, onClose, chatId }) {
     const [group, setGroup] = useState(null);
 
     const fetchedRef = useRef(null);
+
+    const navigate = useNavigate();
 
     // When modal opens, fetch once
     useEffect(() => {
@@ -167,9 +170,13 @@ export default function GroupDetailModal({ open, onClose, chatId }) {
                     {group.members?.map((member) => (
                         <ListItem key={member.id}>
                             <ListItemAvatar>
-                                <Avatar src={getFullImageUrl(member.profile_photo_url)}>
-                                    {member.name?.[0]?.toUpperCase() || 'U'}
-                                </Avatar>
+                                <IconButton
+                                    onClick={() => navigate(`/profile/${member.username}`)}
+                                    sx={{ p: 0, mr: 1 }}
+                                >
+                                    <Avatar src={getFullImageUrl(member.profile_photo_url)}>
+                                        {member.name?.[0]?.toUpperCase() || 'U'}
+                                    </Avatar></IconButton>
                             </ListItemAvatar>
                             <ListItemText
                                 primary={member.name}
