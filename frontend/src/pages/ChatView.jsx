@@ -28,6 +28,7 @@ import {
     Info as InfoIcon,
     Group as GroupIcon,
     MoreVert as MoreVertIcon,
+    Schedule as ScheduleIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import useChatStore from '../store/useChatStore';
@@ -187,22 +188,33 @@ export default function ChatView() {
 
                 switch (data.event) {
                     case 'new_message': {
-                        // Build a consistent message object
                         const msg = {
-                            id: data.message_id || Date.now(),
+                            id: data.message_id,
                             chat_id: data.chat_id,
                             sender_id: data.sender_id,
                             sender_name: data.sender_name || 'Unknown',
                             content: data.content || null,
-                            message_type: data.message_type || 'text',  // ensure it's set
+                            message_type: data.message_type || 'text',
                             media_url: data.media_url || null,
                             created_at: data.created_at || new Date().toISOString(),
                             is_deleted: false,
-                            scheduled_at: null,
-                            is_sent: true,
+                            scheduled_at: data.scheduled_at || null,
+                            is_sent: data.is_sent !== undefined ? data.is_sent : true,
                         };
-                        console.log('📥 Adding WebSocket message:', msg);
-                        addMessage(msg);
+
+                        // Check if message already exists (e.g., scheduled)
+                        const existingMessages = messages[chatId] || [];
+                        const existing = existingMessages.find((m) => m.id === msg.id);
+                        if (existing) {
+                            // Update the existing message with the new data (including new timestamp)
+                            updateMessage(chatId, msg.id, {
+                                is_sent: true,
+                                created_at: msg.created_at,   // 👈 update to actual sent time
+                                // optionally update content if changed (shouldn't)
+                            });
+                        } else {
+                            addMessage(msg);
+                        }
                         break;
                     }
                     case 'message_edited':
@@ -335,6 +347,7 @@ export default function ChatView() {
     const renderMessage = (msg) => {
         const isOwn = Number(msg.sender_id) === Number(userId);
         const isDeleted = msg.is_deleted;
+        const isScheduled = msg.scheduled_at && !msg.is_sent;
 
         // Determine sender name
         let senderDisplayName = isOwn
@@ -393,6 +406,12 @@ export default function ChatView() {
                                 msg.content
                             )}
                         </Typography>
+                        {isScheduled && (
+                            <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
+                                <ScheduleIcon sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />
+                                Scheduled for {new Date(msg.scheduled_at).toLocaleString()}
+                            </Typography>
+                        )}
                         <Typography variant="caption" display="block" sx={{ opacity: 0.6, textAlign: 'right' }}>
                             {new Date(msg.created_at).toLocaleTimeString()}
                         </Typography>
@@ -531,9 +550,11 @@ export default function ChatView() {
                     userId={userId}   // 👈 add this
                     onSend={(data) => {
                         if (data.message_type === 'media' && data.media_url) {
+                            // Media message – already a full message from server
                             addMessage(data);
                         } else {
-                            sendMessage(chatId, data.content);
+                            // Text message – send with scheduled_at if present
+                            sendMessage(chatId, data);   // data = { content, scheduled_at? }
                         }
                     }}
                     onTemporaryAdd={addMessage}

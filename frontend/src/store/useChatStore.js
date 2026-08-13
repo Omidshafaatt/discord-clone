@@ -35,9 +35,9 @@ const useChatStore = create((set, get) => ({
   },
 
   // Send a message – no optimistic update; WebSocket will add it
-  sendMessage: async (chatId, content) => {
+  sendMessage: async (chatId, messageData) => {
     try {
-      await api.post(`/chat/${chatId}/messages`, { content });
+      await api.post(`/chat/${chatId}/messages`, messageData);
     } catch (err) {
       set({ error: err.response?.data?.detail || 'Failed to send message' });
     }

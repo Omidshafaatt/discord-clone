@@ -34,6 +34,7 @@ async def check_and_send_scheduled_messages():
                 member_ids = [row[0] for row in members.all()]
 
                 media_url = msg.media.file_path if msg.media else None
+                actual_sent_time = datetime.now(timezone.utc)
                 
                 message_json = json.dumps({
                     "event": "new_message",
@@ -44,8 +45,9 @@ async def check_and_send_scheduled_messages():
                     "content": msg.content,
                     "media_url": media_url, # 👈 اضافه شد
                     "message_type": msg.message_type.value, # 👈 اضافه شد برای تشخیص کلاینت
-                    "created_at": msg.created_at.isoformat(),
-                    "is_scheduled_delivery": True
+                    "created_at": actual_sent_time.isoformat(),
+                    "is_scheduled_delivery": True,
+                    "is_sent": True, 
                 })
                 
                 await manager.broadcast_to_chat(msg.chat_id, member_ids, message_json)

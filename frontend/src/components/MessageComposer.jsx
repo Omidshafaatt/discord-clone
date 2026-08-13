@@ -8,13 +8,24 @@ import {
   LinearProgress,
   Paper,
   Typography,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
-import { Send as SendIcon, AttachFile as AttachFileIcon, Close as CloseIcon } from '@mui/icons-material';
+import {
+  Send as SendIcon,
+  AttachFile as AttachFileIcon,
+  Close as CloseIcon,
+  Schedule as ScheduleIcon,
+} from '@mui/icons-material';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import dayjs from 'dayjs';
 import api from '../api/client';
 
 export default function MessageComposer({
   chatId,
-  userId,                // 👈 pass the current user ID from parent
+  userId,
   onSend,
   onTemporaryAdd,
   onTemporaryUpdate,
@@ -27,15 +38,24 @@ export default function MessageComposer({
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState(null);
+
   const fileInputRef = useRef(null);
   const tempIdRef = useRef(null);
 
   const handleSend = async () => {
-    // ---- No file → send text ----
+    // ---- Text only ----
     if (!selectedFile) {
       if (!message.trim()) return;
-      onSend({ content: message.trim() });
+      const payload = { content: message.trim() };
+      if (scheduleEnabled && scheduledTime) {
+        payload.scheduled_at = scheduledTime.toISOString();
+      }
+      onSend(payload);
       setMessage('');
+      setScheduleEnabled(false);
+      setScheduledTime(null);
       return;
     }
 
@@ -59,6 +79,7 @@ export default function MessageComposer({
       uploading: true,
       progress: 0,
       is_sent: true,
+      scheduled_at: scheduleEnabled && scheduledTime ? scheduledTime.toISOString() : null,
     };
     onTemporaryAdd(chatId, tempMessage);
 
@@ -66,6 +87,9 @@ export default function MessageComposer({
     formData.append('file', selectedFile);
     if (message.trim()) {
       formData.append('text_content', message.trim());
+    }
+    if (scheduleEnabled && scheduledTime) {
+      formData.append('scheduled_at', scheduledTime.toISOString());
     }
 
     try {
@@ -80,15 +104,13 @@ export default function MessageComposer({
         },
       });
 
-      // Remove temporary message
       onTemporaryRemove(chatId, tempId);
-
-      // Broadcast final message
       onSend(response.data);
 
-      // Reset form
       setMessage('');
       setSelectedFile(null);
+      setScheduleEnabled(false);
+      setScheduledTime(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       onTemporaryRemove(chatId, tempId);
@@ -102,9 +124,7 @@ export default function MessageComposer({
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
-    if (file) {
-      setSelectedFile(file);
-    }
+    if (file) setSelectedFile(file);
   };
 
   const removeFile = () => {
@@ -123,7 +143,7 @@ export default function MessageComposer({
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-      {/* File preview area */}
+      {/* File preview */}
       {selectedFile && (
         <Paper
           elevation={1}
@@ -145,13 +165,37 @@ export default function MessageComposer({
         </Paper>
       )}
 
+      {/* Scheduling toggle + picker */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={scheduleEnabled}
+              onChange={(e) => setScheduleEnabled(e.target.checked)}
+              disabled={isSending}
+              size="small"
+            />
+          }
+          label={<ScheduleIcon fontSize="small" />}
+        />
+        {scheduleEnabled && (
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DateTimePicker
+              label="Send at"
+              value={scheduledTime}
+              onChange={(newValue) => setScheduledTime(newValue)}
+              disabled={isSending}
+              slotProps={{ textField: { size: 'small', sx: { width: 200 } } }}
+              minDateTime={dayjs().add(1, 'minute')}
+            />
+          </LocalizationProvider>
+        )}
+      </Box>
+
+      {/* Input row */}
       <Box sx={{ display: 'flex', alignItems: 'center' }}>
         {canUploadMedia && (
-          <IconButton
-            component="label"
-            sx={{ mr: 1 }}
-            disabled={isSending}
-          >
+          <IconButton component="label" sx={{ mr: 1 }} disabled={isSending}>
             <AttachFileIcon />
             <input
               type="file"
@@ -185,7 +229,7 @@ export default function MessageComposer({
         </IconButton>
       </Box>
 
-      {/* Progress bar */}
+      {/* Upload progress */}
       {uploading && (
         <LinearProgress
           variant="determinate"
