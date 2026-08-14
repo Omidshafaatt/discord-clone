@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -14,13 +14,10 @@ import {
     FormControlLabel,
     CircularProgress,
     Alert,
-    Divider,
     Chip,
 } from '@mui/material';
 import {
     Edit as EditIcon,
-    Save as SaveIcon,
-    Cancel as CancelIcon,
     PhotoCamera as PhotoCameraIcon,
     Chat as ChatIcon
 } from '@mui/icons-material';
@@ -399,8 +396,8 @@ export default function ProfilePage() {
                                         color="error"
                                         onClick={handleCancel}
                                         sx={{
-                                            flex: '0 0 auto', // 👈 Prevents shrinking, uses content width
-                                            minWidth: '240px', // 👈 Optional: set a minimum width
+                                            flex: '0 0 auto',
+                                            minWidth: '240px',
                                         }}
                                     >
                                         Cancel

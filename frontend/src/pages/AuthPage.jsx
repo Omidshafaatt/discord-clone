@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -16,7 +16,7 @@ import {
     IconButton,
     Alert,
 } from '@mui/material';
-import { LockOutlined, Brightness4, Brightness7, ChatBubbleOutlineRounded, Sms } from '@mui/icons-material';
+import { Brightness4, Brightness7, Sms } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -100,7 +100,7 @@ export default function AuthPage() {
         if (data.bio) formData.append('bio', data.bio);
         if (profilePhoto) {
             formData.append('profile_photo', profilePhoto);
-            console.log('📸 File appended:', profilePhoto.name, profilePhoto.size); // 👈 Add this
+            console.log('📸 File appended:', profilePhoto.name, profilePhoto.size);
         }
 
         const result = await registerUser(formData);

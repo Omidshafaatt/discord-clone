@@ -20,12 +20,10 @@ import {
 import { Close as CloseIcon, Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
 import useChatStore from '../store/useChatStore';
 import { getFullImageUrl } from '../lib/utils';
-import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 
 export default function GroupDetailModal({ open, onClose, chatId }) {
-    const { user } = useAuth();
     const { chats, fetchGroupDetails, addMembers, deleteGroup, leaveGroup, updateGroup } = useChatStore();
     const [newMembers, setNewMembers] = useState('');
     const [error, setError] = useState('');

@@ -22,8 +22,6 @@ import {
     LinearProgress,
 } from '@mui/material';
 import {
-    Send as SendIcon,
-    AttachFile as AttachFileIcon,
     ArrowBack as ArrowBackIcon,
     Info as InfoIcon,
     Group as GroupIcon,
@@ -119,8 +117,6 @@ export default function ChatView() {
     const permissions = currentUserRole?.permissions || [];
     const canSendMessages = permissions.includes('send_messages');
     const canUploadMedia = permissions.includes('upload_media');
-    const canManageChannel = permissions.includes('manage_channel');
-    const canManageMembers = permissions.includes('manage_members');
     const canEditMessages = permissions.includes('edit_messages');
     const canDeleteMessages = permissions.includes('delete_messages');
 

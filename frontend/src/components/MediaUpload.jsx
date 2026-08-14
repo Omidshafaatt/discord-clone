@@ -1,4 +1,4 @@
-import { IconButton, CircularProgress, LinearProgress, Box } from '@mui/material';
+import { IconButton, LinearProgress, Box } from '@mui/material';
 import { AttachFile as AttachFileIcon } from '@mui/icons-material';
 import { useState, useRef } from 'react';
 import api from '../api/client';

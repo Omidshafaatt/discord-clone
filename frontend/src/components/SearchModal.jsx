@@ -17,7 +17,6 @@ import {
 } from '@mui/material';
 import { Close as CloseIcon, Search as SearchIcon } from '@mui/icons-material';
 import api from '../api/client';
-import { getFullImageUrl } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 
 export default function SearchModal({ open, onClose, chatId, onMessageClick }) {

@@ -1,5 +1,4 @@
-// src/components/ChannelDetailModal.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -24,8 +23,6 @@ import {
   FormControl,
   InputLabel,
   Dialog as NestedDialog,
-  DialogContent as NestedContent,
-  DialogActions as NestedActions,
   Checkbox,
   FormGroup,
   FormControlLabel as FormCheckbox,
@@ -51,7 +48,7 @@ const AVAILABLE_PERMISSIONS = [
 ];
 
 export default function ChannelDetailModal({ open, onClose, chatId }) {
-  const { user, userId } = useAuth();
+  const { userId } = useAuth();
   const navigate = useNavigate();
 
   const {
@@ -64,7 +61,7 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
     updateChannel,
     deleteChannel,
     createChannelRole,
-    leaveChannel, // 👈 new action
+    leaveChannel,
   } = useChatStore();
 
   // ---- Local state ----
