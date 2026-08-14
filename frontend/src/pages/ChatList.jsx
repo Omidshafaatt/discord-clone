@@ -294,7 +294,7 @@ export default function ChatList() {
                             <MenuIcon />
                         </IconButton>
 
-                        <Typography variant="h6" sx={{ flexGrow: 1 }}>
+                        <Typography variant="h6" sx={{ mr: 4, width: 100 }}>
                             {activeFilter === 'all'
                                 ? 'All Chats'
                                 : activeFilter === 'group'
@@ -314,10 +314,10 @@ export default function ChatList() {
                                     </InputAdornment>
                                 ),
                             }}
-                            sx={{ width: { xs: 180, sm: 200, md: 240 } }}
+                            sx={{ width: { xs: 200, sm: 250, md: 300 } }}
                         />
 
-                        <IconButton sx={{ ml: 2 }} onClick={() => navigate('/profile')}>
+                        <IconButton sx={{ ml: 'auto' }} onClick={() => navigate('/profile')}>
                             <Avatar
                                 src={getFullImageUrl(user?.profile_photo_url)}
                                 sx={{ width: 32, height: 32 }}
@@ -343,9 +343,7 @@ export default function ChatList() {
                                         : `No ${activeFilter}s found`}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                {searchQuery
-                                    ? 'Try a different search term.'
-                                    : 'Start a new chat using the New Chat button.'}
+                                {!searchQuery && 'Start a new chat using the New Chat button.'}
                             </Typography>
                         </Box>
                     ) : (
@@ -409,7 +407,6 @@ export default function ChatList() {
                                             )}
                                         </Box>
                                     </ListItem>
-                                    {index < filteredChats.length - 1 && <Divider />}
                                 </React.Fragment>
                             ))}
                         </List>
