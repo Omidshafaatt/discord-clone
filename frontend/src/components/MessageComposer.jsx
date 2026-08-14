@@ -148,7 +148,7 @@ export default function MessageComposer({
   const isTextDisabled = !canSendText || isSending;
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', pb: 2 }}>
       {/* File preview */}
       {selectedFile && (
         <Paper
@@ -173,8 +173,39 @@ export default function MessageComposer({
 
       {/* Input row – your original layout */}
       <Box sx={{ display: 'flex', alignItems: 'center', pt: 1 }}>
+        {canUploadMedia && (
+          <IconButton component="label" sx={{ mr: 1, width: 40, height: 40 }} disabled={isSending}>
+            <AttachFileIcon />
+            <input
+              type="file"
+              hidden
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip"
+            />
+          </IconButton>
+        )}
+
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder={
+            isTextDisabled
+              ? 'You can only upload media'
+              : selectedFile
+                ? 'Add a caption...'
+                : 'Type a message...'
+          }
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={isTextDisabled}
+          size="small"
+          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+        />
+
         {/* Scheduling toggle + picker */}
-        <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative', right: -7, mr: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative', right: -7, ml: 1 }}>
           <FormControlLabel
             sx={{ position: 'relative', bottom: -3, mr: 1 }}
             control={
@@ -223,38 +254,6 @@ export default function MessageComposer({
             </LocalizationProvider>
           )}
         </Box>
-
-        {canUploadMedia && (
-          <IconButton component="label" sx={{ mr: 1, width: 40, height: 40 }} disabled={isSending}>
-            <AttachFileIcon />
-            <input
-              type="file"
-              hidden
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip"
-            />
-          </IconButton>
-        )}
-
-        <TextField
-          fullWidth
-          variant="outlined"
-          placeholder={
-            isTextDisabled
-              ? 'You can only upload media'
-              : selectedFile
-                ? 'Add a caption...'
-                : 'Type a message...'
-          }
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={isTextDisabled}
-          size="small"
-          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
-        />
-
         <IconButton
           color="primary"
           onClick={handleSend}
