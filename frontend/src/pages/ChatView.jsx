@@ -620,7 +620,7 @@ export default function ChatView() {
                 elevation={1}
                 sx={{
                     p: 2,
-                    height: 'calc(100% - 140px)',
+                    height: 'calc(100% - 210px)',
                     overflowY: 'auto',
                     backgroundColor: 'background.default',
                 }}
