@@ -428,7 +428,7 @@ export default function ChatView() {
                         messageRefs.current.delete(msg.id);
                     }
                 }}
-                sx={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', mb: 2 }}
+                sx={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', mb: 2, ml: isOwn ? 'auto' : 'inherit' }}
             >
                 {!isOwn && msg.sender_username && (
                     <IconButton
@@ -445,12 +445,12 @@ export default function ChatView() {
                         {avatarLetter}
                     </Avatar>
                 )}
-                <Box sx={{ position: 'relative', maxWidth: '70%' }}>
+                <Box sx={{ position: 'relative', maxWidth: '80%', minWidth: 100 }}>
                     <Paper
                         elevation={1}
                         sx={{
                             p: 2,
-                            backgroundColor: isOwn ? 'primary.main' : 'background.paper',
+                            backgroundColor: isOwn ? 'secondary.main' : 'background.paper',
                             color: isOwn ? 'white' : 'text.primary',
                             borderRadius: 2,
                             wordBreak: 'break-word',
@@ -503,8 +503,9 @@ export default function ChatView() {
                         {/* ---- Timestamp ---- */}
                         <Typography variant="caption" display="block" sx={{ opacity: 0.6, textAlign: 'right' }}>
                             {isScheduled
-                                ? `Scheduled: ${new Date(msg.scheduled_at).toLocaleString()}`
-                                : new Date(msg.created_at).toLocaleTimeString()}
+                                ? `Scheduled: ${new Date(msg.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                : new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            }
                         </Typography>
                     </Paper>
 

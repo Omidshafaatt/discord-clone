@@ -42,7 +42,7 @@ export default function MediaDisplay({ mediaUrl, content }) {
                 <Button
                     href={url}
                     target="_blank"
-                    variant="outlined"
+                    variant="contained"
                     size="small"
                     startIcon={<span>📎</span>}
                 >
