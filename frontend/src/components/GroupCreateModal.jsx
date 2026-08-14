@@ -57,7 +57,7 @@ export default function GroupCreateModal({ open, onClose }) {
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
                     <TextField
                         fullWidth
-                        label="Group Name *"
+                        label="Group Name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         margin="normal"

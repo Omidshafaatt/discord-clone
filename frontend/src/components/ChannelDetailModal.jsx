@@ -1,4 +1,3 @@
-// src/components/ChannelDetailModal.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
@@ -292,14 +291,14 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
         {/* ---- Channel Info / Edit ---- */}
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, width: '100%' }}>
           <Avatar
             src={getFullImageUrl(channel.profile_photo_url)}
-            sx={{ width: 64, height: 64, mr: 2 }}
+            sx={{ width: 94, height: 94, mr: 2, alignSelf: 'start' }}
           >
             {channel.name?.[0]?.toUpperCase() || 'C'}
           </Avatar>
-          <Box flex={1}>
+          <Box sx={{ flex: 1 }}>
             {editing ? (
               // ---- Edit mode ----
               <>
@@ -360,37 +359,48 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
               </>
             ) : (
               // ---- View mode ----
-              <>
-                <Typography variant="h6">{channel.name}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {channel.description || 'No description'}
-                </Typography>
-                {channel.rules && (
-                  <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
-                    Rules: {channel.rules}
+              <Box
+                sx={{
+                  display: 'flex',
+                  width: '100%',
+                  flexDirection: { xs: 'column', md: 'row' },
+                  gap: 2,
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box flex={1}>
+                  <Typography variant="h6">{channel.name}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {channel.description || 'No description'}
                   </Typography>
-                )}
-                <Typography variant="caption" display="block" color="text.secondary">
-                  {channel.is_public ? 'Public' : 'Private'} •{' '}
-                  {channel.members?.length || 0} members
-                </Typography>
+                  {channel.rules && (
+                    <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+                      <b>Rules:</b> {channel.rules}
+                    </Typography>
+                  )}
+                  <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
+                    <br />
+                    {channel.is_public ? 'Public' : 'Private'} •{' '}
+                    {channel.members?.length || 0} members
+                  </Typography>
+                </Box>
                 {canManageChannel && (
-                  <>
-                    <Button startIcon={<EditIcon />} onClick={() => setEditing(true)} size="small">
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', justifySelf: 'end' }}>
+                    <Button variant="contained" startIcon={<EditIcon />} onClick={() => setEditing(true)} size="small">
                       Edit
                     </Button>
-                    <Button color="error" onClick={handleDeleteChannel} size="small">
+                    <Button variant="contained" color="error" onClick={handleDeleteChannel} size="small">
                       Delete
                     </Button>
-                  </>
+                  </Box>
                 )}
-              </>
+              </Box>
             )}
           </Box>
         </Box>
 
         {/* ---- Members list ---- */}
-        <Typography variant="subtitle1" fontWeight="bold" mt={2}>
+        <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 4 }}>
           Members
         </Typography>
         <List dense>
@@ -407,21 +417,23 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
                   >
                     <Avatar src={getFullImageUrl(member.user.profile_photo_url)}>
                       {member.user.name?.[0]?.toUpperCase() || 'U'}
-                    </Avatar></IconButton>
+                    </Avatar>
+                  </IconButton>
                 </ListItemAvatar>
                 <ListItemText
                   primary={member.user.name}
                   secondary={`@${member.user.username} • ${member.role?.name || 'No role'}`}
                 />
                 {canManageThisMember && member.user.id !== userId && (
-                  <>
-                    <FormControl size="small" sx={{ minWidth: 120, mr: 1 }}>
+                  <div style={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <FormControl size="small" sx={{ mr: 1 }}>
                       <InputLabel id={`role-label-${member.user.id}`}>Role</InputLabel>
                       <Select
                         labelId={`role-label-${member.user.id}`}
                         value={member.role?.name || ''}
                         onChange={(e) => handleRoleChange(member.user.id, e.target.value)}
                         disabled={actionLoading || isCreator}
+                        sx={{ width: { xs: 100, sm: 120 } }}
                       >
                         {availableRoles.map((role) => (
                           <MenuItem key={role.id} value={role.name}>
@@ -436,20 +448,21 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
                         color="error"
                         onClick={() => handleRemoveMember(member.user.id)}
                         disabled={actionLoading}
+                        sx={{ width: 30, height: 30 }}
                       >
                         <CloseIcon />
                       </IconButton>
                     )}
-                  </>
+                  </div>
                 )}
               </ListItem>
             )
           })}
         </List>
 
-        {/* ---- Add members (admin only) ---- */}
+        {/* ---- Add members ---- */}
         {canManageMembers && (
-          <>
+          <div style={{ marginBottom: 10, marginTop: 30 }}>
             <Typography variant="subtitle1" fontWeight="bold" mt={2}>
               Add Members
             </Typography>
@@ -470,13 +483,13 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
                 <AddIcon />
               </Button>
             </Box>
-          </>
+          </div>
         )}
 
         {/* ---- Create role (admin only) ---- */}
         {canManageChannel && (
           <Button
-            variant="outlined"
+            variant='contained'
             startIcon={<AddIcon />}
             onClick={() => setRoleDialogOpen(true)}
             sx={{ mt: 2 }}
