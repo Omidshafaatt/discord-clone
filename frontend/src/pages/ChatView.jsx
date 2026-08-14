@@ -567,9 +567,9 @@ export default function ChatView() {
     const showInfoButton = isGroup || (isChannel && (canManageChannel || canManageMembers));
 
     return (
-        <Container maxWidth="md" sx={{ mt: 2, mb: 2, height: 'calc(100vh - 100px)' }}>
+        <Container maxWidth="md" sx={{ mt: 1, height: 'calc(100vh - 80px)' }}>
             {/* Header */}
-            <Paper elevation={2} sx={{ p: 2, display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Paper elevation={2} sx={{ p: 2, display: 'flex', alignItems: 'center', mb: 1 }}>
                 <IconButton onClick={() => navigate('/')} sx={{ mr: 1 }}>
                     <ArrowBackIcon />
                 </IconButton>
@@ -620,7 +620,7 @@ export default function ChatView() {
                 elevation={1}
                 sx={{
                     p: 2,
-                    height: 'calc(100% - 210px)',
+                    height: 'calc(100% - 180px)',
                     overflowY: 'auto',
                     backgroundColor: 'background.default',
                 }}

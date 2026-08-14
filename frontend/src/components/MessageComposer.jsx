@@ -1,4 +1,3 @@
-// src/components/MessageComposer.jsx
 import { useState, useRef } from 'react';
 import {
   Box,
@@ -16,6 +15,7 @@ import {
   AttachFile as AttachFileIcon,
   Close as CloseIcon,
   Schedule as ScheduleIcon,
+  CalendarToday as CalendarTodayIcon,
 } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -33,7 +33,7 @@ export default function MessageComposer({
   onError,
   disabled = false,
   canUploadMedia = true,
-  canSendMessages = true,   // 👈 new prop
+  canSendMessages = true,
 }) {
   const [message, setMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
@@ -41,21 +41,17 @@ export default function MessageComposer({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduledTime, setScheduledTime] = useState(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const fileInputRef = useRef(null);
   const tempIdRef = useRef(null);
 
-  // ---- Determine if user can send text (without file) ----
   const canSendText = canSendMessages;
-
-  // ---- Determine if user can send at all (text or file) ----
   const canSend = canSendText || selectedFile;
 
   const handleSend = async () => {
-    // If no file and text is not allowed, block
     if (!selectedFile && !canSendText) return;
 
-    // ---- Text only (no file) ----
     if (!selectedFile) {
       if (!message.trim()) return;
       const payload = { content: message.trim() };
@@ -69,7 +65,6 @@ export default function MessageComposer({
       return;
     }
 
-    // ---- Upload file with caption ----
     setUploading(true);
     setUploadProgress(0);
 
@@ -167,7 +162,7 @@ export default function MessageComposer({
             backgroundColor: 'action.hover',
           }}
         >
-          <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', px: 2 }}>
             📎 {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
           </Typography>
           <IconButton size="small" onClick={removeFile} disabled={isSending}>
@@ -176,37 +171,61 @@ export default function MessageComposer({
         </Paper>
       )}
 
-      {/* Scheduling toggle + picker */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={scheduleEnabled}
-              onChange={(e) => setScheduleEnabled(e.target.checked)}
-              disabled={isSending}
-              size="small"
-            />
-          }
-          label={<ScheduleIcon fontSize="small" />}
-        />
-        {scheduleEnabled && (
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DateTimePicker
-              label="Send at"
-              value={scheduledTime}
-              onChange={(newValue) => setScheduledTime(newValue)}
-              disabled={isSending}
-              slotProps={{ textField: { size: 'small', sx: { width: 200 } } }}
-              minDateTime={dayjs().add(1, 'minute')}
-            />
-          </LocalizationProvider>
-        )}
-      </Box>
+      {/* Input row – your original layout */}
+      <Box sx={{ display: 'flex', alignItems: 'center', pt: 1 }}>
+        {/* Scheduling toggle + picker */}
+        <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative', right: -7, mr: 1 }}>
+          <FormControlLabel
+            sx={{ position: 'relative', bottom: -3, mr: 1 }}
+            control={
+              <Switch
+                checked={scheduleEnabled}
+                onChange={(e) => setScheduleEnabled(e.target.checked)}
+                disabled={isSending}
+                size="small"
+                sx={{ position: 'relative', bottom: 3 }}
+              />
+            }
+            label={<ScheduleIcon fontSize="small" />}
+          />
+          {scheduleEnabled && (
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <DateTimePicker
+                  open={pickerOpen}
+                  onOpen={() => setPickerOpen(true)}
+                  onClose={() => setPickerOpen(false)}
+                  value={scheduledTime}
+                  onChange={(newValue) => setScheduledTime(newValue)}
+                  disabled={isSending}
+                  slotProps={{
+                    textField: {
+                      sx: {
+                        width: 0,
+                        height: 0,
+                        opacity: 0,
+                        position: 'absolute',
+                        pointerEvents: 'none',
+                      },
+                    },
+                  }}
+                  minDateTime={dayjs().add(1, 'minute')}
+                />
+                <IconButton
+                  onClick={() => setPickerOpen(true)}
+                  disabled={isSending}
+                  size="small"
+                  sx={{ width: 40, height: 40 }}
+                >
+                  <CalendarTodayIcon />
+                </IconButton>
+              </Box>
+            </LocalizationProvider>
+          )}
+        </Box>
 
-      {/* Input row */}
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
         {canUploadMedia && (
-          <IconButton component="label" sx={{ mr: 1 }} disabled={isSending}>
+          <IconButton component="label" sx={{ mr: 1, width: 40, height: 40 }} disabled={isSending}>
             <AttachFileIcon />
             <input
               type="file"
