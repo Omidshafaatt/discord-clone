@@ -564,7 +564,7 @@ export default function ChatView() {
         headerAvatarClick = goToProfile;
     }
 
-    const showInfoButton = isGroup || (isChannel && (canManageChannel || canManageMembers));
+    const showInfoButton = isGroup || isChannel;
 
     return (
         <Container maxWidth="md" sx={{ mt: 1, height: 'calc(100vh - 80px)' }}>

@@ -1,3 +1,4 @@
+// src/components/ChannelDetailModal.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
@@ -50,8 +51,8 @@ const AVAILABLE_PERMISSIONS = [
 
 export default function ChannelDetailModal({ open, onClose, chatId }) {
   const { user, userId } = useAuth();
+  const navigate = useNavigate();
 
-  // ---- Store actions ----
   const {
     chats,
     fetchChannelDetails,
@@ -62,6 +63,7 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
     updateChannel,
     deleteChannel,
     createChannelRole,
+    leaveChannel, // 👈 new action
   } = useChatStore();
 
   // ---- Local state ----
@@ -84,13 +86,8 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
   const [newRoleName, setNewRoleName] = useState('');
   const [newRolePermissions, setNewRolePermissions] = useState([]);
 
-  // Available roles – fetched from backend
   const [availableRoles, setAvailableRoles] = useState([]);
-
-  // Ref to prevent multiple fetches
   const fetchedRef = useRef(null);
-
-  const navigate = useNavigate();
 
   // ---- Fetch channel details & roles when modal opens ----
   useEffect(() => {
@@ -100,7 +97,6 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
           setLoading(true);
           setError('');
           try {
-            // 1. Get channel details (includes members)
             const data = await fetchChannelDetails(chatId);
             setChannel(data);
             setEditName(data.name);
@@ -108,7 +104,6 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
             setEditRules(data.rules || '');
             setEditIsPublic(data.is_public);
 
-            // 2. Get all roles for this channel
             const roles = await fetchChannelRoles(chatId);
             setAvailableRoles(roles || []);
           } catch (e) {
@@ -120,12 +115,10 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
         };
         load();
       } else {
-        // Already fetched – update from store
         const current = chats.find((c) => c.id === chatId);
         if (current) setChannel(current);
       }
     } else {
-      // Reset when modal closes
       fetchedRef.current = null;
       setChannel(null);
       setEditing(false);
@@ -137,6 +130,7 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
   const currentMember = channel?.members?.find((m) => m.user.id === userId);
   const canManageChannel = currentMember?.role?.permissions?.includes('manage_channel');
   const canManageMembers = currentMember?.role?.permissions?.includes('manage_members');
+  const isCreator = channel?.created_by_id === userId;
 
   // ---- Add members ----
   const handleAddMembers = async () => {
@@ -149,7 +143,6 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
       const updated = await addChannelMembers(chatId, usernames);
       setChannel(updated);
       setNewMembers('');
-      // Refresh roles list (in case new members bring new roles – not needed, but safe)
       const roles = await fetchChannelRoles(chatId);
       setAvailableRoles(roles);
     } catch (err) {
@@ -208,7 +201,7 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
     }
   };
 
-  // ---- Delete channel ----
+  // ---- Delete channel (creator only) ----
   const handleDeleteChannel = async () => {
     if (!window.confirm('Delete this channel permanently?')) return;
     setActionLoading(true);
@@ -217,6 +210,20 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
       onClose();
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to delete channel');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ---- Leave channel (all members) ----
+  const handleLeaveChannel = async () => {
+    if (!window.confirm('Are you sure you want to leave this channel?')) return;
+    setActionLoading(true);
+    try {
+      await leaveChannel(chatId);
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to leave channel');
     } finally {
       setActionLoading(false);
     }
@@ -235,7 +242,6 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
         name: newRoleName,
         permissions: newRolePermissions,
       });
-      // Re‑fetch channel details & roles
       const data = await fetchChannelDetails(chatId);
       setChannel(data);
       const roles = await fetchChannelRoles(chatId);
@@ -365,7 +371,7 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
                   width: '100%',
                   flexDirection: { xs: 'column', md: 'row' },
                   gap: 2,
-                  justifyContent: 'space-between'
+                  justifyContent: 'space-between',
                 }}
               >
                 <Box flex={1}>
@@ -377,15 +383,14 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
                     <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
                       <b>Rules:</b> {channel.rules}
                     </Typography>
-                  )}
+                  )}<br/>
                   <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
-                    <br />
                     {channel.is_public ? 'Public' : 'Private'} •{' '}
                     {channel.members?.length || 0} members
                   </Typography>
                 </Box>
                 {canManageChannel && (
-                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', justifySelf: 'end' }}>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                     <Button variant="contained" startIcon={<EditIcon />} onClick={() => setEditing(true)} size="small">
                       Edit
                     </Button>
@@ -400,13 +405,13 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
         </Box>
 
         {/* ---- Members list ---- */}
-        <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 4 }}>
+        <Typography variant="subtitle1" fontWeight="bold" mt={2}>
           Members
         </Typography>
         <List dense>
           {channel.members?.map((member) => {
-            const isCreator = member.user.id === channel.created_by_id;
-            const canManageThisMember = canManageMembers && !isCreator;
+            const isCreatorMember = member.user.id === channel.created_by_id;
+            const canManageThisMember = canManageMembers && !isCreatorMember;
 
             return (
               <ListItem key={member.user.id}>
@@ -425,15 +430,14 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
                   secondary={`@${member.user.username} • ${member.role?.name || 'No role'}`}
                 />
                 {canManageThisMember && member.user.id !== userId && (
-                  <div style={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                    <FormControl size="small" sx={{ mr: 1 }}>
+                  <>
+                    <FormControl size="small" sx={{ width: {xs: 120, md: 150}, mr: 1 }}>
                       <InputLabel id={`role-label-${member.user.id}`}>Role</InputLabel>
                       <Select
                         labelId={`role-label-${member.user.id}`}
                         value={member.role?.name || ''}
                         onChange={(e) => handleRoleChange(member.user.id, e.target.value)}
-                        disabled={actionLoading || isCreator}
-                        sx={{ width: { xs: 100, sm: 120 } }}
+                        disabled={actionLoading || isCreatorMember}
                       >
                         {availableRoles.map((role) => (
                           <MenuItem key={role.id} value={role.name}>
@@ -442,28 +446,27 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
                         ))}
                       </Select>
                     </FormControl>
-                    {!isCreator && (
+                    {!isCreatorMember && (
                       <IconButton
                         size="small"
                         color="error"
                         onClick={() => handleRemoveMember(member.user.id)}
                         disabled={actionLoading}
-                        sx={{ width: 30, height: 30 }}
                       >
                         <CloseIcon />
                       </IconButton>
                     )}
-                  </div>
+                  </>
                 )}
               </ListItem>
-            )
+            );
           })}
         </List>
 
-        {/* ---- Add members ---- */}
+        {/* ---- Add members (admin only) ---- */}
         {canManageMembers && (
-          <div style={{ marginBottom: 10, marginTop: 30 }}>
-            <Typography variant="subtitle1" fontWeight="bold" mt={2}>
+          <>
+            <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>
               Add Members
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
@@ -483,16 +486,16 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
                 <AddIcon />
               </Button>
             </Box>
-          </div>
+          </>
         )}
 
         {/* ---- Create role (admin only) ---- */}
         {canManageChannel && (
           <Button
-            variant='contained'
+            variant="outlined"
             startIcon={<AddIcon />}
             onClick={() => setRoleDialogOpen(true)}
-            sx={{ mt: 2 }}
+            sx={{ mt: 3 }}
             disabled={actionLoading}
           >
             Create New Role
@@ -501,6 +504,19 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
       </DialogContent>
 
       <DialogActions>
+        {/* ---- Leave Channel (all members) ---- */}
+
+        {!canManageChannel && (<Button variant="outlined" color="error" onClick={handleLeaveChannel} disabled={actionLoading}>
+          Leave Channel
+        </Button>)}
+
+        {/* ---- Delete Channel (creator only) ---- */}
+        {isCreator && canManageChannel && (
+          <Button variant="contained" color="error" onClick={handleDeleteChannel} disabled={actionLoading}>
+            Delete Channel
+          </Button>
+        )}
+
         <Button onClick={onClose}>Close</Button>
       </DialogActions>
 
