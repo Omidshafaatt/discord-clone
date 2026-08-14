@@ -2,7 +2,7 @@ services:
   - type: web
     name: discord-backend
     runtime: docker
-    repo: https://github.com/your-username/your-repo
+    repo: https://github.com/Setyhoseini/discord-clone
     plan: free
     envVars:
       - key: DATABASE_URL
@@ -20,7 +20,7 @@ services:
   - type: web
     name: discord-frontend
     runtime: docker
-    repo: https://github.com/your-username/your-repo
+    repo: https://github.com/Setyhoseini/discord-clone
     plan: free
     dockerfilePath: ./frontend.Dockerfile
     envVars:
