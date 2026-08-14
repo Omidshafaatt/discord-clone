@@ -27,7 +27,6 @@ import {
     Badge,
     ListItemIcon,
     useMediaQuery,
-    useTheme,
 } from '@mui/material';
 import {
     Search as SearchIcon,
@@ -39,16 +38,19 @@ import {
     Menu as MenuIcon,
     Campaign as CampaignIcon,
     Sms,
+    Brightness4,
+    Brightness7,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import useChatStore from '../store/useChatStore';
 import { getFullImageUrl } from '../lib/utils';
 import GroupCreateModal from '../components/GroupCreateModal';
 import ChannelCreateModal from '../components/ChannelCreateModal';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ChatList() {
     const navigate = useNavigate();
-    const theme = useTheme();
+    const { mode, toggleTheme, theme } = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const { user, logout } = useAuth();
     const { chats, fetchChats, createChat, loading, error } = useChatStore();
@@ -125,11 +127,6 @@ export default function ChatList() {
             return getFullImageUrl(chat.profile_photo_url);
         }
         return null;
-    };
-
-    const getLastMessage = (chat) => {
-        // TODO: Fetch last message from store when available
-        return 'Last message...';
     };
 
     const handleNewChatClick = (event) => {
@@ -281,7 +278,7 @@ export default function ChatList() {
             </Drawer>
 
             {/* ---- Main Content ---- */}
-            <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', width: '100%' }}>
+            <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', width: '100%', backgroundColor: mode === 'light' ? '#f0f2f9' : '#1a1a1a', }}>
                 {/* Top Bar */}
                 <AppBar position="static" color="default" elevation={1} sx={{ zIndex: 0 }}>
                     <Toolbar>
@@ -316,15 +313,22 @@ export default function ChatList() {
                             }}
                             sx={{ width: { xs: 200, sm: 250, md: 300 } }}
                         />
-
-                        <IconButton sx={{ ml: 'auto' }} onClick={() => navigate('/profile')}>
-                            <Avatar
-                                src={getFullImageUrl(user?.profile_photo_url)}
-                                sx={{ width: 32, height: 32 }}
+                        <div style={{ marginLeft: 'auto' }}>
+                            <IconButton
+                                onClick={toggleTheme}
+                                sx={{ width: 40, height: 40, mr: 1 }}
                             >
-                                {user?.name?.[0]?.toUpperCase() || 'U'}
-                            </Avatar>
-                        </IconButton>
+                                {mode === 'light' ? <Brightness4 /> : <Brightness7 />}
+                            </IconButton>
+                            <IconButton onClick={() => navigate('/profile')}>
+                                <Avatar
+                                    src={getFullImageUrl(user?.profile_photo_url)}
+                                    sx={{ width: 32, height: 32 }}
+                                >
+                                    {user?.name?.[0]?.toUpperCase() || 'U'}
+                                </Avatar>
+                            </IconButton>
+                        </div>
                     </Toolbar>
                 </AppBar>
 
@@ -356,6 +360,7 @@ export default function ChatList() {
                                         sx={{
                                             borderRadius: 2,
                                             '&:hover': { backgroundColor: 'action.hover' },
+                                            color: 'text.primary'
                                         }}
                                     >
                                         <ListItemAvatar>
@@ -378,7 +383,6 @@ export default function ChatList() {
                                         </ListItemAvatar>
                                         <ListItemText
                                             primary={getChatName(chat)}
-                                            secondary={getLastMessage(chat)}
                                             secondaryTypographyProps={{ noWrap: true }}
                                         />
                                         <Box sx={{ textAlign: 'right', minWidth: 60 }}>
