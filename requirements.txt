@@ -13,3 +13,4 @@ websockets
 aiofiles
 apscheduler
 pytz
+psycopg2-binary
