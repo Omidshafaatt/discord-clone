@@ -17,7 +17,6 @@ function App() {
           element={
             <ProtectedRoute>
               <>
-                <Navbar />
                 <ChatList />
               </>
             </ProtectedRoute>
