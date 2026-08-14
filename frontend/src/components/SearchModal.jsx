@@ -18,12 +18,15 @@ import {
 import { Close as CloseIcon, Search as SearchIcon } from '@mui/icons-material';
 import api from '../api/client';
 import { getFullImageUrl } from '../lib/utils';
+import { useTheme } from '../context/ThemeContext';
 
 export default function SearchModal({ open, onClose, chatId, onMessageClick }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const { theme } = useTheme();
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -48,7 +51,9 @@ export default function SearchModal({ open, onClose, chatId, onMessageClick }) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        Search Messages
+        <Typography sx={{ color: theme.palette.text.primary }}>
+          Search Messages
+        </Typography>
         <IconButton sx={{ position: 'absolute', right: 8, top: 8 }} onClick={onClose}>
           <CloseIcon />
         </IconButton>

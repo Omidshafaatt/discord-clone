@@ -39,6 +39,7 @@ import useChatStore from '../store/useChatStore';
 import { getFullImageUrl } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 const AVAILABLE_PERMISSIONS = [
   'send_messages',
@@ -72,6 +73,8 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
   const [error, setError] = useState('');
   const [newMembers, setNewMembers] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+
+  const { theme } = useTheme();
 
   // Edit mode
   const [editing, setEditing] = useState(false);
@@ -287,7 +290,9 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
+        <Typography sx={{ color: theme.palette.text.primary }}>
         Channel Details
+        </Typography>
         <IconButton sx={{ position: 'absolute', right: 8, top: 8 }} onClick={onClose}>
           <CloseIcon />
         </IconButton>

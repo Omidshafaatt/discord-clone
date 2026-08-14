@@ -20,7 +20,13 @@ export const ThemeProvider = ({ children }) => {
     const theme = useMemo(
         () =>
             createTheme({
-                palette: { mode },
+                palette: {
+                    mode,
+                    background: {
+                        default: mode === 'light' ? '#f0f2f5' : '#121212',
+                        paper: mode === 'light' ? '#ffffff' : '#1e1e1e',
+                    },
+                },
                 components: {
                     MuiInputBase: {
                         styleOverrides: {

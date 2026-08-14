@@ -148,7 +148,7 @@ export default function MessageComposer({
   const isTextDisabled = !canSendText || isSending;
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', pb: 2 }}>
+    <Paper sx={{ display: 'flex', flexDirection: 'column', width: '100%', pb: 1, mt: 1 }}>
       {/* File preview */}
       {selectedFile && (
         <Paper
@@ -272,6 +272,6 @@ export default function MessageComposer({
           sx={{ mt: 1, height: 4, borderRadius: 2 }}
         />
       )}
-    </Box>
+    </Paper>
   );
 }

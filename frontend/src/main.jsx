@@ -15,6 +15,7 @@ function ThemedApp() {
     <StyledEngineProvider enableCssLayer injectFirst>
       <MuiThemeProvider theme={theme}>
         <GlobalStyles styles="@layer theme, base, mui, components, utilities;" />
+        <CssBaseline />
         <App />
       </MuiThemeProvider>
     </StyledEngineProvider>

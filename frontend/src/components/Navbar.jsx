@@ -26,7 +26,7 @@ export default function Navbar() {
     };
 
     return (
-        <AppBar position="sticky" color="secondary">
+        <AppBar position="sticky" sx={{ backgroundColor: 'background.default' }} color='text.primary'>
             <Toolbar>
                 <Typography variant="h6" sx={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
                     ChatFlow

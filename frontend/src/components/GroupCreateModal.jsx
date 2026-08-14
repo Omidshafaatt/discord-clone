@@ -8,8 +8,10 @@ import {
     Button,
     Alert,
     CircularProgress,
+    Typography,
 } from '@mui/material';
 import useChatStore from '../store/useChatStore';
+import { useTheme } from '../context/ThemeContext';
 
 export default function GroupCreateModal({ open, onClose }) {
     const { createGroup, loading } = useChatStore();
@@ -18,6 +20,8 @@ export default function GroupCreateModal({ open, onClose }) {
     const [initialMembers, setInitialMembers] = useState('');
     const [photo, setPhoto] = useState(null);
     const [error, setError] = useState('');
+
+    const { theme } = useTheme();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -51,7 +55,11 @@ export default function GroupCreateModal({ open, onClose }) {
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <DialogTitle>Create New Group</DialogTitle>
+            <DialogTitle>
+                <Typography sx={{ color: theme.palette.text.primary }}>
+                    Create New Group
+                </Typography>
+            </DialogTitle>
             <form onSubmit={handleSubmit}>
                 <DialogContent>
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}

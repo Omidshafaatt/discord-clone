@@ -280,7 +280,7 @@ export default function ChatList() {
             {/* ---- Main Content ---- */}
             <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', width: '100%', backgroundColor: mode === 'light' ? '#f0f2f9' : '#1a1a1a', }}>
                 {/* Top Bar */}
-                <AppBar position="static" color="default" elevation={1} sx={{ zIndex: 0 }}>
+                <AppBar position="static" sx={{ backgroundColor: 'background.paper', zIndex: 0 }} elevation={1}>
                     <Toolbar>
                         {/* Burger menu (mobile only) */}
                         <IconButton
@@ -291,7 +291,7 @@ export default function ChatList() {
                             <MenuIcon />
                         </IconButton>
 
-                        <Typography variant="h6" sx={{ mr: 4, width: 100 }}>
+                        <Typography variant="h6" sx={{ mr: 4, width: 100, color: 'text.primary' }}>
                             {activeFilter === 'all'
                                 ? 'All Chats'
                                 : activeFilter === 'group'
@@ -311,7 +311,7 @@ export default function ChatList() {
                                     </InputAdornment>
                                 ),
                             }}
-                            sx={{ width: { xs: 200, sm: 250, md: 300 } }}
+                            sx={{ width: { xs: 200, sm: 250, md: 300 }, backgroundColor: 'background.default', borderRadius: 1 }}
                         />
                         <div style={{ marginLeft: 'auto' }}>
                             <IconButton
@@ -420,7 +420,11 @@ export default function ChatList() {
 
             {/* ---- Dialogs ---- */}
             <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Start a New DM</DialogTitle>
+                <DialogTitle>
+                    <Typography sx={{ color: theme.palette.text.primary }}>
+                        Start a New DM
+                    </Typography>
+                </DialogTitle>
                 <DialogContent>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                         Enter the username of the person you want to chat with.

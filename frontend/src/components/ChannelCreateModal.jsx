@@ -10,8 +10,10 @@ import {
     CircularProgress,
     FormControlLabel,
     Switch,
+    Typography,
 } from '@mui/material';
 import useChatStore from '../store/useChatStore';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ChannelCreateModal({ open, onClose }) {
     const { createChannel, loading } = useChatStore();
@@ -22,6 +24,7 @@ export default function ChannelCreateModal({ open, onClose }) {
     const [initialMembers, setInitialMembers] = useState('');
     const [photo, setPhoto] = useState(null);
     const [error, setError] = useState('');
+    const { theme } = useTheme();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -59,13 +62,17 @@ export default function ChannelCreateModal({ open, onClose }) {
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <DialogTitle>Create Channel</DialogTitle>
+            <DialogTitle>
+                <Typography sx={{ color: theme.palette.text.primary }}>
+                    Create Channel
+                </Typography>
+            </DialogTitle>
             <form onSubmit={handleSubmit}>
                 <DialogContent>
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
                     <TextField
                         fullWidth
-                        label="Channel Name *"
+                        label="Channel Name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         margin="normal"
