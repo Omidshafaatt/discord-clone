@@ -40,6 +40,7 @@ import MediaDisplay from '../components/MediaDisplay';
 import MessageComposer from '../components/MessageComposer';
 import SearchModal from '../components/SearchModal';
 import api from '../api/client';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ChatView() {
     const { chatId } = useParams();
@@ -80,6 +81,8 @@ export default function ChatView() {
     const [groupDetailModalOpen, setGroupDetailModalOpen] = useState(false);
     const [channelDetailModalOpen, setChannelDetailModalOpen] = useState(false);
     const [searchModalOpen, setSearchModalOpen] = useState(false);
+
+    const { theme } = useTheme();
 
     // ---- Message menu state ----
     const [anchorEl, setAnchorEl] = useState(null);
@@ -503,7 +506,7 @@ export default function ChatView() {
                         {/* ---- Timestamp ---- */}
                         <Typography variant="caption" display="block" sx={{ opacity: 0.6, textAlign: 'right' }}>
                             {isScheduled
-                                ? `Scheduled: ${new Date(msg.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                ? ``
                                 : new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                             }
                         </Typography>
@@ -711,7 +714,11 @@ export default function ChatView() {
 
             {/* Edit Dialog */}
             <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Edit Message</DialogTitle>
+                <DialogTitle>
+                    <Typography sx={{ color: theme.palette.text.primary }}>
+                        Edit Message
+                    </Typography>
+                </DialogTitle>
                 <DialogContent>
                     <TextField
                         fullWidth

@@ -291,7 +291,7 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         <Typography sx={{ color: theme.palette.text.primary }}>
-        Channel Details
+          Channel Details
         </Typography>
         <IconButton sx={{ position: 'absolute', right: 8, top: 8 }} onClick={onClose}>
           <CloseIcon />
@@ -388,7 +388,7 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
                     <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
                       <b>Rules:</b> {channel.rules}
                     </Typography>
-                  )}<br/>
+                  )}<br />
                   <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
                     {channel.is_public ? 'Public' : 'Private'} •{' '}
                     {channel.members?.length || 0} members
@@ -436,7 +436,7 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
                 />
                 {canManageThisMember && member.user.id !== userId && (
                   <>
-                    <FormControl size="small" sx={{ width: {xs: 120, md: 150}, mr: 1 }}>
+                    <FormControl size="small" sx={{ width: { xs: 120, md: 150 }, mr: 1 }}>
                       <InputLabel id={`role-label-${member.user.id}`}>Role</InputLabel>
                       <Select
                         labelId={`role-label-${member.user.id}`}
@@ -527,7 +527,11 @@ export default function ChannelDetailModal({ open, onClose, chatId }) {
 
       {/* ---- Nested dialog for role creation ---- */}
       <NestedDialog open={roleDialogOpen} onClose={() => setRoleDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Create Custom Role</DialogTitle>
+        <DialogTitle>
+          <Typography sx={{ color: theme.palette.text.primary }}>
+            Create Custom Role
+          </Typography>
+        </DialogTitle>
         <DialogContent>
           <TextField
             fullWidth
