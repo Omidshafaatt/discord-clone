@@ -22,7 +22,7 @@ class LoginForm:
 class UserPublic(BaseModel):
     id: int
     name: str
-    username: str
+    username: Optional[str]
     profile_photo_url: Optional[str] = None
     bio: Optional[str] = None
 

@@ -437,6 +437,9 @@ async def edit_message(
     if chat.chat_type == ChatType.CHANNEL:
         if message.sender_id != current_user.id:
             await check_permission(db, current_user.id, chat_id, "edit_messages")
+    else:
+        if message.sender_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can not edit the messages of another user")
 
     message.content = update_data.content
     db.add(message)

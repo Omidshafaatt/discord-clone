@@ -1,3 +1,4 @@
+// frontend\src\pages\ChatView.jsx
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -30,6 +31,8 @@ import ChatHeader from '../components/ChatHeader';
 import useChatWebSocket from '../hooks/useChatWebSocket';
 import api from '../api/client';
 import { useTheme } from '../context/ThemeContext';
+
+import { useNotification } from '../context/NotificationContext';
 
 export default function ChatView() {
     const { chatId } = useParams();
@@ -68,6 +71,9 @@ export default function ChatView() {
     const messagesEndRef = useRef(null);
     const fetchedChannelRef = useRef(false);
 
+    // Notification
+    const { showNotification } = useNotification();
+
     // ---- WebSocket ----
     const handleWebSocketMessage = useCallback((data) => {
         switch (data.event) {
@@ -96,6 +102,17 @@ export default function ChatView() {
                 } else {
                     addMessage(msg);
                 }
+                // ---- Show notification if the message is from a different chat ----
+                const currentChatId = parseInt(chatId, 10);
+                if (data.chat_id !== currentChatId) {
+                const senderName = data.sender_name || 'Someone';
+                const preview = data.content || '📎 Media message';
+                showNotification({
+                    senderName,
+                    preview,
+                    chatId: data.chat_id,
+                });
+                }
                 break;
             }
             case 'message_edited':
@@ -107,7 +124,7 @@ export default function ChatView() {
             default:
                 break;
         }
-    }, [chatId, messages, addMessage, updateMessage, fetchMessages]);
+    }, [chatId, messages, addMessage, updateMessage, fetchMessages, showNotification]);
 
     useChatWebSocket({ chatId, onMessageReceived: handleWebSocketMessage });
 

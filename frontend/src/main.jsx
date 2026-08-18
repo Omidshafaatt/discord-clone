@@ -1,3 +1,4 @@
+// src/main.jsx
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -5,18 +6,21 @@ import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import { StyledEngineProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider as CustomThemeProvider, useTheme } from './context/ThemeContext';
+import { NotificationProvider } from './context/NotificationContext';
+import NotificationToast from './components/NotificationToast';
 import App from './App';
 import './index.css';
-import { GlobalStyles } from '@mui/material';
 
 function ThemedApp() {
   const { theme } = useTheme();
   return (
-    <StyledEngineProvider enableCssLayer injectFirst>
+    <StyledEngineProvider injectFirst>
       <MuiThemeProvider theme={theme}>
-        <GlobalStyles styles="@layer theme, base, mui, components, utilities;" />
         <CssBaseline />
-        <App />
+        <NotificationProvider>
+          <App />
+          <NotificationToast />   {/* 👈 added */}
+        </NotificationProvider>
       </MuiThemeProvider>
     </StyledEngineProvider>
   );
