@@ -217,8 +217,6 @@ async def send_text_message(
     await db.commit()
     await db.refresh(new_message)
 
-    members = await db.execute(select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id))
-    member_ids = [row[0] for row in members.all()]
     message_json = json.dumps({
         "event": "new_message",
         "message_id": new_message.id,
@@ -231,7 +229,13 @@ async def send_text_message(
         "is_sent": new_message.is_sent,
         "sender_username": current_user.username,
     })
-    await manager.broadcast_to_chat(chat_id, member_ids, message_json)
+
+    if is_scheduled:
+        await manager.broadcast_to_chat(chat_id, [current_user.id], message_json)
+    else:
+        members = await db.execute(select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id))
+        member_ids = [row[0] for row in members.all()]
+        await manager.broadcast_to_chat(chat_id, member_ids, message_json)
     
     return MessageOut(
         id=new_message.id,

@@ -25,6 +25,7 @@ class UserPublic(BaseModel):
     username: Optional[str]
     profile_photo_url: Optional[str] = None
     bio: Optional[str] = None
+    allow_group_invites: bool = True
 
     class Config:
         from_attributes = True

@@ -62,7 +62,7 @@ export default function MessageItem({
                     )}
 
                     {/* ---- Media content ---- */}
-                    {isMedia && (
+                    {/* {isMedia && (
                         <>
                             {msg.uploading ? (
                                 <Box sx={{ width: '100%', mt: 1 }}>
@@ -78,10 +78,10 @@ export default function MessageItem({
                                 />
                             ) : null}
                         </>
-                    )}
+                    )} */}
 
                     {/* ---- Text content ---- */}
-                    {!isMedia && (
+                    {/* {!isMedia && (
                         <Typography variant="body1">
                             {isDeleted ? (
                                 <em style={{ opacity: 0.6 }}>This message was deleted</em>
@@ -89,6 +89,40 @@ export default function MessageItem({
                                 msg.content
                             )}
                         </Typography>
+                    )} */}
+                    {/* ---- اگر پیام حذف شده باشد، فقط همین را نشان بده ---- */}
+                    {isDeleted ? (
+                        <Typography variant="body1">
+                            <em style={{ opacity: 0.6 }}>This message was deleted</em>
+                        </Typography>
+                    ) : (
+                        <>
+                            {/* ---- محتوای رسانه (فقط اگر حذف نشده باشد) ---- */}
+                            {isMedia && (
+                                <>
+                                    {msg.uploading ? (
+                                        <Box sx={{ width: '100%', mt: 1 }}>
+                                            <LinearProgress variant="determinate" value={msg.progress || 0} />
+                                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                                                Uploading... {msg.progress || 0}%
+                                            </Typography>
+                                        </Box>
+                                    ) : msg.media_url ? (
+                                        <MediaDisplay
+                                            mediaUrl={getFullImageUrl(msg.media_url)}
+                                            content={msg.content}
+                                        />
+                                    ) : null}
+                                </>
+                            )}
+
+                            {/* ---- محتوای متنی (فقط اگر حذف نشده باشد) ---- */}
+                            {!isMedia && (
+                                <Typography variant="body1">
+                                    {msg.content}
+                                </Typography>
+                            )}
+                        </>
                     )}
 
                     {/* ---- Scheduled indicator ---- */}
